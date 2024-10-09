@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <round.h>
 #include <stdio.h>
+#include <string.h>
 #include "devices/pit.h"
 #include "threads/interrupt.h"
 #include "threads/synch.h"
@@ -20,6 +21,9 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
+/* list of threads waiting on a timer */
+static struct list timer_waiters;
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -29,6 +33,7 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+static bool end_tick_sort (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -37,6 +42,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init(&timer_waiters);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -92,9 +98,32 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  /* checks the thread hasn't already gone past its timer,
+  also fail-safe incase the thread wakes up early */
+  while (timer_elapsed (start) < ticks) {
+    /* initialise t_waiter struct and its members */
+    struct t_waiter waiter;
+    sema_init(&waiter.sema, 0);
+    waiter.end_ticks = start + ticks;
+    strlcpy (waiter.thread, thread_current()->name, sizeof waiter.thread);
+
+    /* add struct to timer_waiters list */
+    enum intr_level old_level = intr_disable ();
+    list_insert_ordered(&timer_waiters, &waiter.elem, end_tick_sort, NULL);
+    intr_set_level (old_level);
+
+    /* wait for thread to be woken */
+    sema_down(&waiter.sema);
+  }
 }
+
+static bool end_tick_sort (const struct list_elem *a,
+                           const struct list_elem *b, void *aux UNUSED)
+ {
+  struct t_waiter *aw = (list_entry (a, struct t_waiter, elem));
+  struct t_waiter *bw = (list_entry (b, struct t_waiter, elem));
+  return aw->end_ticks < bw->end_ticks;
+ }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
    turned on. */
@@ -171,6 +200,18 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+  struct t_waiter *waiter;
+
+  /* remove and wake up all threads in timer_waiter that have expired their timer */
+  while (!list_empty(&timer_waiters)) {
+    waiter = list_entry (list_front(&timer_waiters), struct t_waiter, elem);
+    if (waiter->end_ticks <= ticks) {
+      sema_up(&waiter->sema);
+      list_pop_front(&timer_waiters);
+    } else {
+      break;
+    }
+  }
   thread_tick ();
 }
 
