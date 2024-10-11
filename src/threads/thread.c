@@ -161,14 +161,7 @@ thread_tick (void)
       load_avg = FIXED_TO_INT (FIXED_ADD_INT (prev, new));
 
       /* Update recent CPU usage value for every thread */
-      struct list_elem *e;
-      for (e = list_begin (&list); e != list_end (&list); e = list_next (e))
-        {
-          
-        }
-      
-      /* Update new load average */
-      
+      thread_foreach (thread_update_recent_cpu(), NULL);
     }
 
   /* Enforce preemption. */
@@ -178,15 +171,15 @@ thread_tick (void)
 
 /* Auxilliary function that updates recent CPU values. */
 static void
-thread_update_recent_cpu (void *aux)
+thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 {
-
   int64_t coeff; /* Coefficient for recent CPU calculation */
   int64_t numer; = FIXED_MUL_INT (fixed_load_avg, 2);
   int64_t denom; = FIXED_ADD_INT (numer, 1);
   coeff = FIXED_DIV (numer, denom);
 
-  int64_t old_recent_cpu = list_entry(e, struct thread, allelem)->
+  int64_t old_recent_cpu = INT_TO_FIXED (t->recent_cpu);
+  t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, old_recent_cpu), t->nice);
 }
 
 /* Prints thread statistics. */
