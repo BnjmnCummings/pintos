@@ -77,6 +77,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+static void thread_update_recent_cpu (struct thread *t, void *aux UNUSED);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -100,6 +101,9 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
+  //initiate system-wide load average as zero
+  load_avg = INITIAL_LOAD_AVG;
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -108,6 +112,8 @@ thread_init (void)
 
   //niceness defaults to 0:
   initial_thread->nice = NICE_DEFAULT;
+  initial_thread->recent_cpu = RECENT_CPU_DEFAULT;
+
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -168,7 +174,7 @@ thread_tick (void)
       load_avg = FIXED_TO_INT (FIXED_ADD_INT (prev, new));
 
       /* Update recent CPU usage value for every thread */
-      thread_foreach (thread_update_recent_cpu(), NULL);
+      thread_foreach (thread_update_recent_cpu, NULL);
     }
 
   /* Enforce preemption. */
@@ -180,17 +186,17 @@ thread_tick (void)
 static void
 thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 {
-  int64_t coeff; /* Coefficient for recent CPU calculation */
-  int64_t numer; = FIXED_MUL_INT (fixed_load_avg, 2);
-  int64_t denom; = FIXED_ADD_INT (numer, 1);
-  coeff = FIXED_DIV (numer, denom);
+   /* Coefficient for recent CPU calculation */
+  int64_t numer = FIXED_MUL_INT (thread_get_load_avg(), 2); // not sure if this should be load_avg or thread_get_load_avg
+  int64_t denom = FIXED_ADD_INT (numer, 1);
+  int64_t coeff = FIXED_DIV (numer, denom);
 
   int64_t old_recent_cpu = INT_TO_FIXED (t->recent_cpu);
   t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, old_recent_cpu), t->nice);
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>> TODO
-static void
+void
 thread_mlfqs_update_priority ()
 {
   // need to use fixed point macros
@@ -267,8 +273,9 @@ thread_create (const char *name, int priority,
 
   intr_set_level (old_level);
 
-  //inherit niceness from current thread
+  //inherit niceness and recent_cpu from current thread
   t->nice = thread_current()->nice;
+  t->recent_cpu = thread_current()->recent_cpu;
 
   /* Add to run queue. */
   thread_unblock (t);
