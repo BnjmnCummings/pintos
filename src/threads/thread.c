@@ -71,6 +71,10 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+static bool compare_donations (const struct list_elem *a,
+                   const struct list_elem *b,
+                   void *aux UNUSED);
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -387,7 +391,37 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
+  struct list donated = thread_current()->donated_prios;
+  if (!list_empty(&donated)) {
+    int d_prio = list_entry(list_front(&donated), struct donated_prio, elem)->priority;
+    if (d_prio > thread_current ()->priority) {
+      return d_prio;
+    }
+  }
   return thread_current ()->priority;
+}
+
+void
+donate_priority (struct thread *t, struct donated_prio *p) {
+  p->priority = thread_get_priority();
+  lock_acquire(&t->donated_lock);
+  list_insert_ordered(&t->donated_prios, &p->elem, compare_donations, NULL);
+  lock_release(&t->donated_lock);
+}
+
+void
+revoke_priority (struct thread *t, struct donated_prio *p) {
+  lock_acquire(&t->donated_lock);
+  list_remove(&p->elem);
+  lock_release(&t->donated_lock);
+}
+
+static bool
+compare_donations (const struct list_elem *a,
+                   const struct list_elem *b,
+                   void *aux UNUSED) {
+  return list_entry(a, struct donated_prio, elem)->priority > 
+         list_entry(b, struct donated_prio, elem)->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -507,6 +541,8 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  list_init(&t->donated_prios);
+  lock_init(&t->donated_lock);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
