@@ -143,7 +143,7 @@ thread_tick (void)
   struct thread *t = thread_current ();
 
   /* Updates running thread's recent CPU usage */
-  t->recent_cpu = FIXED_ADD_INT (FIXED_TO_INT (t->recent_cpu), 1);
+  t->recent_cpu = FIXED_ADD_INT (INT_TO_FIXED (t->recent_cpu), 1);
 
   /* Update statistics. */
   if (t == idle_thread)
