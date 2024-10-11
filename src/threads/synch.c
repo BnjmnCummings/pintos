@@ -41,7 +41,13 @@
 
    - up or "V": increment the value (and wake up one waiting
      thread, if any). */
-void
+
+static bool
+waiter_prio_compare(const struct list_elem *a,
+                    const struct list_elem *b,
+                    void *aux UNUSED);
+
+        void
 sema_init (struct semaphore *sema, unsigned value) 
 {
   ASSERT (sema != NULL);
@@ -254,9 +260,20 @@ lock_held_by_current_thread (const struct lock *lock)
 /* One semaphore in a list. */
 struct semaphore_elem 
   {
+    int priority;                       /* Priority of thread */
     struct list_elem elem;              /* List element. */
     struct semaphore semaphore;         /* This semaphore. */
   };
+
+/* helper function to order waiters inside condition of a monitor by priority */
+static bool
+waiter_prio_compare(const struct list_elem *a,
+                    const struct list_elem *b,
+                    void *aux UNUSED) {
+    int a1 = list_entry(a, struct semaphore_elem, elem)->priority;
+    int b1 = list_entry(b, struct semaphore_elem, elem)->priority;
+    return a1 > b1;
+}
 
 /* Initializes condition variable COND.  A condition variable
    allows one piece of code to signal a condition and cooperating
@@ -300,7 +317,11 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_push_back (&cond->waiters, &waiter.elem);
+  waiter.priority = thread_current()->priority;
+
+  /* Insert ordered to implement the behaviour of a priority queue */
+  list_insert_ordered(&cond->waiters, &waiter.elem, &waiter_prio_compare, NULL);
+
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
