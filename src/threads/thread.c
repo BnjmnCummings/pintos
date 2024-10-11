@@ -105,6 +105,9 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
+  //niceness defaults to 0:
+  initial_thread->nice = NICE_DEFAULT;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -186,6 +189,17 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
   t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, old_recent_cpu), t->nice);
 }
 
+// >>>>>>>>>>>>>>>>>>>>>>>>>> TODO
+static void
+thread_mlfqs_update_priority ()
+{
+  // need to use fixed point macros
+  // needs to be an integer and rounded down
+  // priority =  PRI_MAX - (thread_current()->recent_cpu / 4) - (thread_current()->nice * 2); 
+  
+  //check if updating should cause thread to yield
+}
+
 /* Prints thread statistics. */
 void
 thread_print_stats (void) 
@@ -252,6 +266,9 @@ thread_create (const char *name, int priority,
   sf->ebp = 0;
 
   intr_set_level (old_level);
+
+  //inherit niceness from current thread
+  t->nice = thread_current()->nice;
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -431,6 +448,7 @@ void
 thread_set_nice (int nice) 
 {
   thread_current ()->nice = nice;
+  thread_mlfqs_update_priority();
 }
 
 /* Returns the current thread's nice value. */
