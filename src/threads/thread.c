@@ -4,6 +4,7 @@
 #include <random.h>
 #include <stdio.h>
 #include <string.h>
+#include "devices/timer.h"
 #include "threads/flags.h"
 #include "threads/interrupt.h"
 #include "threads/intr-stubs.h"
@@ -11,6 +12,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixed-point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -49,6 +51,7 @@ struct kernel_thread_frame
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
+static long long load_avg;      /* Minutely estimate # of ready threads. */
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
@@ -135,6 +138,9 @@ thread_tick (void)
 {
   struct thread *t = thread_current ();
 
+  /* Updates running thread's recent CPU usage */
+  t->recent_cpu = FIXED_ADD_INT (FIXED_TO_INT (t->recent_cpu), 1);
+
   /* Update statistics. */
   if (t == idle_thread)
     idle_ticks++;
@@ -145,9 +151,42 @@ thread_tick (void)
   else
     kernel_ticks++;
 
+  /* Updates statistics every second */
+  if (timer_ticks () % TIMER_FREQ == 0)
+    {
+      /* Calculating new load average */
+      int64_t old = INT_TO_FIXED (load_avg);
+      int64_t prev = FIXED_DIV_INT (FIXED_MUL_INT (old, 59), 60);
+      int64_t new = FIXED_DIV_INT (INT_TO_FIXED (list_size (&ready_list)), 60);
+      load_avg = FIXED_TO_INT (FIXED_ADD_INT (prev, new));
+
+      /* Update recent CPU usage value for every thread */
+      struct list_elem *e;
+      for (e = list_begin (&list); e != list_end (&list); e = list_next (e))
+        {
+          
+        }
+      
+      /* Update new load average */
+      
+    }
+
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
+}
+
+/* Auxilliary function that updates recent CPU values. */
+static void
+thread_update_recent_cpu (void *aux)
+{
+
+  int64_t coeff; /* Coefficient for recent CPU calculation */
+  int64_t numer; = FIXED_MUL_INT (fixed_load_avg, 2);
+  int64_t denom; = FIXED_ADD_INT (numer, 1);
+  coeff = FIXED_DIV (numer, denom);
+
+  int64_t old_recent_cpu = list_entry(e, struct thread, allelem)->
 }
 
 /* Prints thread statistics. */
@@ -392,33 +431,30 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
-  /* Not yet implemented. */
+  thread_current ()->nice = nice;
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current ()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return FIXED_MUL_INT (FIXED_TO_INT (load_avg), 100);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return FIXED_MUL_INT (FIXED_TO_INT (thread_current()->recent_cpu), 100);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
