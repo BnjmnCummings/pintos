@@ -230,7 +230,7 @@ thread_create (const char *name, int priority,
 
 /* if new priority is higher than current thread, yield CPU */
 void check_prio(int prio) {
-    if (thread_current()->priority < prio) {
+    if (thread_get_priority() < prio) {
     if (intr_context()) {
       intr_yield_on_return();
     } else {
@@ -277,14 +277,14 @@ thread_unblock (struct thread *t)
   intr_set_level (old_level);
 }
 
-/* helper function to order read_list by priority */
+/* helper function to order ready_list by priority */
 bool
 prio_compare(const struct list_elem *a,
              const struct list_elem *b,
              void *aux UNUSED) {
   struct thread *a1 = list_entry(a, struct thread, elem);
   struct thread *b1 = list_entry(b, struct thread, elem);
-  return a1->priority > b1->priority;
+  return get_threads_priority(a1) > get_threads_priority(b1);
 }
 
 /* Returns the name of the running thread. */
@@ -391,29 +391,43 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  struct list donated = thread_current()->donated_prios;
-  if (!list_empty(&donated)) {
-    int d_prio = list_entry(list_front(&donated), struct donated_prio, elem)->priority;
-    if (d_prio > thread_current ()->priority) {
+  return get_threads_priority(thread_current());
+}
+
+int
+get_threads_priority(struct thread *t) {
+  if (!list_empty(&t->donated_prios)) {
+    int d_prio = list_entry(list_front(&t->donated_prios), struct donated_prio, elem)->priority;
+    if (d_prio > t->priority) {
       return d_prio;
     }
   }
-  return thread_current ()->priority;
+  return t->priority;
 }
 
 void
 donate_priority (struct thread *t, struct donated_prio *p) {
   p->priority = thread_get_priority();
-  lock_acquire(&t->donated_lock);
+  // lock_acquire(&t->donated_lock);
   list_insert_ordered(&t->donated_prios, &p->elem, compare_donations, NULL);
-  lock_release(&t->donated_lock);
+  // lock_release(&t->donated_lock);
+  // for through donations, call donate_priority on all, add to current threads donations
+  struct list_elem *e;
+  if (!list_empty(&t->donations)) {
+    for (e = list_begin (&t->donations); e != list_end (&t->donations); e = list_next (e)) {
+      donate_priority(list_entry(e, struct donated_prio, elem), p);
+    }
+  }
+  list_push_back(&thread_current()->donations, &p->elem);
+  list_sort(&ready_list, prio_compare, NULL);
+  check_prio(get_threads_priority(t));
 }
 
 void
 revoke_priority (struct thread *t, struct donated_prio *p) {
-  lock_acquire(&t->donated_lock);
+  // lock_acquire(&t->donated_lock);
   list_remove(&p->elem);
-  lock_release(&t->donated_lock);
+  // lock_release(&t->donated_lock);
 }
 
 static bool

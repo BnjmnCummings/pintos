@@ -90,7 +90,8 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list donated_prios;
-    struct lock donated_lock;                
+    struct lock donated_lock;
+    struct list donations;                
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
@@ -109,6 +110,7 @@ struct donated_prio
    {
       int priority;
       struct list_elem elem;
+      struct list_elem lockelem;
    };
 
 /* If false (default), use round-robin scheduler.
@@ -147,6 +149,7 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+int get_threads_priority (struct thread *t);
 
 void donate_priority (struct thread *t, struct donated_prio *p);
 void revoke_priority (struct thread *t, struct donated_prio *p);
