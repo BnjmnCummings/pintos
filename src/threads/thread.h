@@ -104,6 +104,17 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
+/* Represents a queue of threads that all share the same
+   priority level, which ranges from 0 to 63. Threads are run
+   by priority and then in round-robin order. This is only used
+   in the advanced scheduler implementation. */
+struct priority_class_queue
+  {
+     int priority;                      /* Priority of all threads in queue. */
+     struct list thread_queue;          /* A queue of threads. */
+     struct list_elem elem;             /* List element. */
+  }
+
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "mlfqs". */

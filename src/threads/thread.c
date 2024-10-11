@@ -30,6 +30,10 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+/* List of queues of threads with different priorities.
+   Threads with the same priority run in round-robin order. */
+static struct list queue_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
