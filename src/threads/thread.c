@@ -195,15 +195,20 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
   t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, old_recent_cpu), t->nice);
 }
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>> TODO
+/* function that updates the current threads prioirty 
+ based it's recent_cpu and niceness */
 void
 thread_mlfqs_update_priority ()
 {
-  // need to use fixed point macros
-  // needs to be an integer and rounded down
-  // priority =  PRI_MAX - (thread_current()->recent_cpu / 4) - (thread_current()->nice * 2); 
-  
+  // spec:       priority =  PRI_MAX - (thread_current()->recent_cpu / 4) - (thread_current()->nice * 2);
+  // calculated: priority =  PRI_MAX - ( (thread_current()->recent_cpu / 4) + (thread_current()->nice * 2) );
+  int64_t recent_cpu_quarter = FIXED_DIV_INT(thread_current()->recent_cpu, 4);
+  int64_t priority_difference = FIXED_ADD_INT(recent_cpu_quarter, (thread_current()->nice * 2));
+  int64_t fixed_priority = INT_SUB_FIXED(PRI_MAX, priority_difference);
+  int64_t int_priority = FIXED_TO_INT_TRUNC(fixed_priority);
+
   //check if updating should cause thread to yield
+  thread_set_priority (int_priority); // this may be replaced with a different function call
 }
 
 /* Prints thread statistics. */

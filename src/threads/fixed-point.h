@@ -26,6 +26,9 @@
 /* Subtracts an integer from a fixed-point value */
 #define FIXED_SUB_INT(x, n) ((x) - ((n) * FACTOR))
 
+/* Subtracts a fixed-point value from an integer (returns fixedpoint)*/
+#define INT_SUB_FIXED(n, x) (((n) * FACTOR) - (x))
+
 /* Multiplies two fixed-point values */
 #define FIXED_MUL(x, y) (((int64_t) x) * (y) / FACTOR)
 
