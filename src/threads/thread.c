@@ -34,6 +34,10 @@ static struct list all_list;
    Threads with the same priority run in round-robin order. */
 static struct list queue_list;
 
+/* Singular List implementation of the mlfq scheduler
+   Threads with the same priority run in round-robin order.*/
+static struct list mlfqs_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -78,6 +82,7 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 static void thread_update_recent_cpu (struct thread *t, void *aux UNUSED);
+static void thread_update_priority (struct thread *t, void *aux UNUSED);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -151,7 +156,7 @@ thread_tick (void)
 {
   struct thread *t = thread_current ();
 
-  /* Updates running thread's recent CPU usage */
+  /* Increments running thread's recent CPU usage */
   t->recent_cpu = FIXED_ADD_INT (INT_TO_FIXED (t->recent_cpu), 1);
 
   /* Update statistics. */
@@ -170,12 +175,24 @@ thread_tick (void)
       /* Calculating new load average */
       int64_t old = INT_TO_FIXED (load_avg);
       int64_t prev = FIXED_DIV_INT (FIXED_MUL_INT (old, 59), 60);
+      // ready threads in the calculation might not be = list_size (&ready_list)
       int64_t new = FIXED_DIV_INT (INT_TO_FIXED (list_size (&ready_list)), 60);
       load_avg = FIXED_TO_INT (FIXED_ADD_INT (prev, new));
 
       /* Update recent CPU usage value for every thread */
       thread_foreach (thread_update_recent_cpu, NULL);
     }
+  /* Updates thread priority every 4 ticks*/
+  if (timer_ticks () % PRI_UPDATE_FREQUENCY == 0) {
+      thread_foreach (thread_update_priority, NULL);
+      // check if updating should cause thread to yield
+      // equivalent to the function
+      //    if (!list_empty(&ready_list)) {
+      //        check_prio(list_entry(list_front(&ready_list),
+      //        struct thread, elem)->priority);
+      //    }
+  }
+
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -197,18 +214,17 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 
 /* function that updates the current threads prioirty 
  based it's recent_cpu and niceness */
-void
-thread_mlfqs_update_priority ()
+static void
+thread_update_priority (struct thread *t, void *aux UNUSED)
 {
   // spec:       priority =  PRI_MAX - (thread_current()->recent_cpu / 4) - (thread_current()->nice * 2);
   // calculated: priority =  PRI_MAX - ( (thread_current()->recent_cpu / 4) + (thread_current()->nice * 2) );
   int64_t recent_cpu_quarter = FIXED_DIV_INT(thread_current()->recent_cpu, 4);
   int64_t priority_difference = FIXED_ADD_INT(recent_cpu_quarter, (thread_current()->nice * 2));
-  int64_t fixed_priority = INT_SUB_FIXED(PRI_MAX, priority_difference);
-  int64_t int_priority = FIXED_TO_INT_TRUNC(fixed_priority);
+  int64_t new_priority = FIXED_TO_INT_TRUNC(INT_SUB_FIXED(PRI_MAX, priority_difference));
 
-  //check if updating should cause thread to yield
-  thread_set_priority (int_priority); // this may be replaced with a different function call
+  //we check if updating should cause thread to yield elsewhere
+  t->priority = new_priority;
 }
 
 /* Prints thread statistics. */
@@ -460,7 +476,14 @@ void
 thread_set_nice (int nice) 
 {
   thread_current ()->nice = nice;
-  thread_mlfqs_update_priority();
+  thread_update_priority(thread_current(), NULL);
+
+  // check if updating should cause thread to yield
+//    if (!list_empty(&ready_list)) {
+//        check_prio(list_entry(list_front(&ready_list),
+//        struct thread, elem)->priority);
+//    }
+
 }
 
 /* Returns the current thread's nice value. */

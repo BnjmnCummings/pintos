@@ -27,7 +27,10 @@ typedef int tid_t;
 /* niceness, revent_cpu and load_avg all start at 0*/
 #define NICE_DEFAULT 0      
 #define RECENT_CPU_DEFAULT 0 
-#define INITIAL_LOAD_AVG 0  
+#define INITIAL_LOAD_AVG 0
+
+/**/
+#define PRI_UPDATE_FREQUENCY 4
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
