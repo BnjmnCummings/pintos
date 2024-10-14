@@ -30,14 +30,6 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
-/* List of queues of threads with different priorities.
-   Threads with the same priority run in round-robin order. */
-static struct list queue_list;
-
-/* Singular List implementation of the mlfq scheduler
-   Threads with the same priority run in round-robin order.*/
-static struct list mlfqs_list;
-
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -46,6 +38,10 @@ static struct thread *initial_thread;
 
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
+
+/* array of thread queues with priority equal to the index where they are stored.
+   Threads with the same priority are stored in a list run in round-robin order. */
+static struct list queue_array[QUEUE_ARRAY_SIZE];
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
