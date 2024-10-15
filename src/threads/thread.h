@@ -100,7 +100,7 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     int nice;                           /* Niceness. */
-    int64_t recent_cpu;                 /* Thread recent CPU usage. */
+    int32_t recent_cpu;                 /* Thread recent CPU usage. */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */

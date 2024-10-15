@@ -3,7 +3,7 @@
 
 /* Set scaling factor used in fixed-point arithmetic */
 #define N_FRACTIONAL_BITS 14
-#define FACTOR (2^N_FRACTIONAL_BITS)
+#define FACTOR (2 << N_FRACTIONAL_BITS)
 
 /* Converts an integer to a fixed-point value */
 #define INT_TO_FIXED(n) ((n) * FACTOR)

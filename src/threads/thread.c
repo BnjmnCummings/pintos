@@ -4,6 +4,7 @@
 #include <random.h>
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include "devices/timer.h"
 #include "threads/flags.h"
 #include "threads/interrupt.h"
@@ -55,7 +56,7 @@ struct kernel_thread_frame
 static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
-static long long load_avg;      /* Minutely estimate # of ready threads. */
+static int32_t load_avg;      /* Minutely estimate # of ready threads. */
 
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
@@ -155,7 +156,7 @@ threads_ready (void)
   if (thread_mlfqs) {
     ready_thread_count = 0;
     for(int i = 0; i < QUEUE_ARRAY_SIZE; i++) {
-        ready_thread_count += list_size (&queue_array[i]);
+      ready_thread_count += list_size (&queue_array[i]);
     }
   } else {
     ready_thread_count = list_size (&ready_list);
@@ -188,12 +189,17 @@ thread_tick (void)
     /* Updates statistics every second */
     if (timer_ticks () % TIMER_FREQ == 0) {
       /* Calculating new load average */
-      int64_t old = INT_TO_FIXED (load_avg);
-      int64_t prev = FIXED_DIV_INT (FIXED_MUL_INT (old, 59), 60);
+      int32_t old = load_avg;
+      int32_t prev = FIXED_DIV_INT (FIXED_MUL_INT (old, 59), 60);
       // ready threads in the calculation might not be = threads_ready()
       // must NOT include the idle thread but must include the running thread
-      int64_t new = FIXED_DIV_INT (INT_TO_FIXED (threads_ready()), 60);
-      load_avg = FIXED_TO_INT (FIXED_ADD_INT (prev, new));
+      int32_t new;
+      if (thread_current() == idle_thread) {
+        new = FIXED_DIV_INT (INT_TO_FIXED (threads_ready()), 60);
+      } else {
+        new = FIXED_DIV_INT (INT_TO_FIXED (threads_ready() + 1), 60);
+      }
+      load_avg = FIXED_ADD (prev, new);
 
       /* Update recent CPU usage value for every thread */
       thread_foreach (thread_update_recent_cpu, NULL);
@@ -223,11 +229,11 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
   ASSERT(thread_mlfqs);
 
    /* Coefficient for recent CPU calculation */
-  int64_t numer = FIXED_MUL_INT (thread_get_load_avg(), 2); // not sure if this should be load_avg or thread_get_load_avg
-  int64_t denom = FIXED_ADD_INT (numer, 1);
-  int64_t coeff = FIXED_DIV (numer, denom);
+  int32_t numer = FIXED_MUL_INT (thread_get_load_avg(), 2); // not sure if this should be load_avg or thread_get_load_avg
+  int32_t denom = FIXED_ADD_INT (numer, 1);
+  int32_t coeff = FIXED_DIV (numer, denom);
 
-  int64_t old_recent_cpu = INT_TO_FIXED (t->recent_cpu);
+  int32_t old_recent_cpu = INT_TO_FIXED (t->recent_cpu);
   t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, old_recent_cpu), t->nice);
 }
 
@@ -240,17 +246,24 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
 
   // spec:       priority =  PRI_MAX - (thread_current()->recent_cpu / 4) - (thread_current()->nice * 2);
   // calculated: priority =  PRI_MAX - ( (thread_current()->recent_cpu / 4) + (thread_current()->nice * 2) );
-  int64_t recent_cpu_quarter = FIXED_DIV_INT(thread_current()->recent_cpu, 4);
-  int64_t priority_difference = FIXED_ADD_INT(recent_cpu_quarter, (thread_current()->nice * 2));
-  int64_t new_priority = FIXED_TO_INT_TRUNC(INT_SUB_FIXED(PRI_MAX, priority_difference));
+  int32_t recent_cpu_quarter = FIXED_DIV_INT(thread_current()->recent_cpu, 4);
+  int32_t priority_difference = FIXED_ADD_INT(recent_cpu_quarter, (thread_current()->nice * 2));
+  int32_t new_priority = FIXED_TO_INT_TRUNC(INT_SUB_FIXED(PRI_MAX, priority_difference));
+  if (new_priority < PRI_MIN) {
+    new_priority = PRI_MIN;
+  } else if (new_priority > PRI_MAX) {
+    new_priority = PRI_MAX;
+  }
 
   //we check if updating should cause thread to yield elsewhere
   t->priority = new_priority;
 
   /* not sure about this equivalence.
     rearrange ready threads but not the running thread*/
-  if (thread_current() != t)
+  if (thread_current()->status == THREAD_READY) {
+    list_remove(&t->elem);
     mlfq_insert(t, new_priority);
+  }
 }
 
 /* Prints thread statistics. */
@@ -538,7 +551,7 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-  return FIXED_MUL_INT (FIXED_TO_INT (load_avg), 100);
+  return FIXED_TO_INT (FIXED_MUL_INT (load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -768,6 +781,7 @@ mlfq_init(void)
 
   for(int i = 0; i < QUEUE_ARRAY_SIZE; i++)
     list_init(&queue_array[i]);
+  printf("done\n");
 }
 
 /* returns the highest priority non-empty queue in the mlfq. */
@@ -798,8 +812,6 @@ static void
 mlfq_insert(struct thread *t, int prio)
 {
   ASSERT (thread_mlfqs);
-
-  list_remove(&t->elem);
   list_push_back(&queue_array[prio], &t->elem);
 }
 
