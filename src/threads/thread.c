@@ -173,7 +173,7 @@ thread_tick (void)
   struct thread *t = thread_current ();
 
   /* Increments running thread's recent CPU usage */
-  t->recent_cpu = FIXED_ADD_INT (INT_TO_FIXED (t->recent_cpu), 1);
+  t->recent_cpu = FIXED_ADD_INT (t->recent_cpu, 1);
 
   /* Update statistics. */
   if (t == idle_thread)
@@ -229,12 +229,11 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
   ASSERT(thread_mlfqs);
 
    /* Coefficient for recent CPU calculation */
-  int32_t numer = FIXED_MUL_INT (thread_get_load_avg(), 2); // not sure if this should be load_avg or thread_get_load_avg
+  int32_t numer = FIXED_MUL_INT (load_avg, 2); // not sure if this should be load_avg or thread_get_load_avg
   int32_t denom = FIXED_ADD_INT (numer, 1);
   int32_t coeff = FIXED_DIV (numer, denom);
 
-  int32_t old_recent_cpu = INT_TO_FIXED (t->recent_cpu);
-  t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, old_recent_cpu), t->nice);
+  t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, t->recent_cpu), t->nice);
 }
 
 /* function that updates the current threads prioirty 
@@ -558,7 +557,7 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void) 
 {
-  return FIXED_MUL_INT (FIXED_TO_INT (thread_current()->recent_cpu), 100);
+  return FIXED_TO_INT (FIXED_MUL_INT (thread_current()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
