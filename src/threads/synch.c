@@ -210,11 +210,23 @@ lock_init (struct lock *lock)
  * PRE: array is not full */
 void array_insert_ordered_prio(struct donated_prio** l, struct donated_prio* p)
 {
+    if (array_contains_prio(l, p)) { return; }
     int i;
     for (i = MAX_DONATIONS - 2; (i >= 0 && (l[i] == NULL || l[i]->priority < p->priority)); i--) {
         l[i + 1] = l[i];
     }
     l[i+1] = p;
+}
+
+bool array_contains_prio(struct donated_prio** l, struct donated_prio* p) 
+{
+    bool contains = false;
+    for (int i = 0; i < MAX_DONATIONS && l[i] != NULL; i++) {
+      if (l[i] == p) {
+        contains = true;
+      }
+    }
+    return contains;
 }
 
 /* Removes element from array 
@@ -246,6 +258,11 @@ bool array_empty_prio(struct donated_prio** l)
 }
 
 bool array_full_prio(struct donated_prio** l)
+{
+  return l[MAX_DONATIONS - 1] != NULL;
+}
+
+bool array_full_lock(struct lock** l)
 {
   return l[MAX_DONATIONS - 1] != NULL;
 }
@@ -300,6 +317,7 @@ lock_acquire (struct lock *lock)
     struct donated_prio p;
     p.priority = thread_get_priority();
     donate_priority(lock, &p);
+    array_push_back_lock(thread_current()->donation_locks, lock);
     donated = true;
   }
 

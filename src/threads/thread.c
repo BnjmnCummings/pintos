@@ -412,11 +412,11 @@ get_threads_priority(struct thread *t) {
 void
 donate_priority (struct lock *lock, struct donated_prio *p) {
 
-  if (array_full_prio(lock->donated_prios)) {
+  struct thread* t = lock->holder;
+
+  if (array_full_prio(lock->donated_prios) || array_full_prio(t->donated_prios)) {
     return;
   }
-
-  struct thread* t = lock->holder;
 
   // lock_acquire(&t->donated_lock);
   /* Donate this threads priority to target thread */
@@ -426,13 +426,12 @@ donate_priority (struct lock *lock, struct donated_prio *p) {
 
   /* for through donations, call donate_priority on all */
   for (struct lock** l = t->donation_locks; *l != NULL; l++) {
-      donate_priority(*l, p);
+      if (!array_full_lock((*l)->holder->donation_locks)) {
+        donate_priority(*l, p);
+      }
   }
 
-  array_push_back_lock(thread_current()->donation_locks, lock);
-
   list_sort(&ready_list, prio_compare, NULL);
-  check_prio(get_threads_priority(t));
 }
 
 void
