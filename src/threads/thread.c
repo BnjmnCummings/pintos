@@ -83,7 +83,7 @@ static void thread_update_priority (struct thread *t, void *aux UNUSED);
 static void mlfq_init(void);
 static int mlfq_highest_priority(void);
 static bool mlfq_is_empty(void);
-static void mlfq_insert(struct thread *t, int prio);
+static void mlfq_insert(struct thread *t);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -172,8 +172,6 @@ thread_tick (void)
 {
   struct thread *t = thread_current ();
 
-  /* Increments running thread's recent CPU usage */
-  t->recent_cpu = FIXED_ADD_INT (t->recent_cpu, 1);
 
   /* Update statistics. */
   if (t == idle_thread)
@@ -186,6 +184,9 @@ thread_tick (void)
     kernel_ticks++;
 
   if (thread_mlfqs) {
+    /* Increments running thread's recent CPU usage */
+    t->recent_cpu = FIXED_ADD_INT (t->recent_cpu, 1);
+
     /* Updates statistics every second */
     if (timer_ticks () % TIMER_FREQ == 0) {
       /* Calculating new load average */
@@ -231,6 +232,10 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
 {
   ASSERT(thread_mlfqs);
 
+  if (t->status == THREAD_BLOCKED) {
+    return;
+  }
+
   int32_t recent_cpu_quarter = FIXED_DIV_INT(thread_current()->recent_cpu, 4);
   int32_t priority_difference = FIXED_ADD_INT(recent_cpu_quarter, (thread_current()->nice * 2));
   int32_t new_priority = FIXED_TO_INT_TRUNC(INT_SUB_FIXED(PRI_MAX, priority_difference));
@@ -247,7 +252,7 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
 
   if (thread_current()->status == THREAD_READY) {
     list_remove(&t->elem);
-    mlfq_insert(t, new_priority);
+    mlfq_insert(t);
   }
 }
 
@@ -373,13 +378,14 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  t->status = THREAD_READY;
   if(thread_mlfqs) {
-    mlfq_insert(t, t->priority);
+    mlfq_insert(t);
+    thread_update_priority(t, NULL);
   } else {
     list_insert_ordered(&ready_list, &t->elem, prio_compare, NULL);
   }
 
-  t->status = THREAD_READY;
   intr_set_level (old_level);
 }
 
@@ -461,7 +467,7 @@ thread_yield (void)
 
   if (cur != idle_thread) {
     if (thread_mlfqs)
-      mlfq_insert(cur, cur->priority);
+      mlfq_insert(cur);
     else
       list_insert_ordered(&ready_list, &cur->elem, prio_compare, NULL);
   }
@@ -514,6 +520,8 @@ thread_set_nice (int nice)
 {
   ASSERT(thread_mlfqs);
 
+  enum intr_level old_level = intr_disable();
+
   thread_current ()->nice = nice;
   thread_update_priority(thread_current(), NULL);
 
@@ -523,6 +531,8 @@ thread_set_nice (int nice)
       list_front(&queue_array[mlfq_highest_priority()]),
       struct thread, elem)->priority);
   }
+
+  intr_set_level(old_level);
 }
 
 /* Returns the current thread's nice value. */
@@ -796,10 +806,10 @@ mlfq_is_empty(void)
 }
 
 static void
-mlfq_insert(struct thread *t, int prio)
+mlfq_insert(struct thread *t)
 {
   ASSERT (thread_mlfqs);
-  list_push_back(&queue_array[prio], &t->elem);
+  list_push_back(&queue_array[t->priority], &t->elem);
 }
 
 /* Offset of `stack' member within `struct thread'.
