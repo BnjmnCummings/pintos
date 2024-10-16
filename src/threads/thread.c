@@ -71,9 +71,6 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
-static bool compare_donations (const struct list_elem *a,
-                   const struct list_elem *b,
-                   void *aux UNUSED);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -396,46 +393,45 @@ thread_get_priority (void)
 
 int
 get_threads_priority(struct thread *t) {
-  if (!list_empty(&t->donated_prios)) {
-    int d_prio = list_entry(list_front(&t->donated_prios), struct donated_prio, elem)->priority;
-    if (d_prio > t->priority) {
-      return d_prio;
+  if (!array_empty_prio(t->donated_prios)) {
+    if (t->donated_prios[0]->priority > t->priority) {
+      return t->donated_prios[0]->priority;
     }
   }
   return t->priority;
 }
 
 void
-donate_priority (struct thread *t, struct donated_prio *p) {
-  p->priority = thread_get_priority();
-  // lock_acquire(&t->donated_lock);
-  list_insert_ordered(&t->donated_prios, &p->elem, compare_donations, NULL);
-  // lock_release(&t->donated_lock);
-  // for through donations, call donate_priority on all, add to current threads donations
-  struct list_elem *e;
-  if (!list_empty(&t->donations)) {
-    for (e = list_begin (&t->donations); e != list_end (&t->donations); e = list_next (e)) {
-      donate_priority(list_entry(e, struct donated_prio, elem), p);
-    }
+donate_priority (struct lock *lock, struct donated_prio *p) {
+
+  if (array_full_prio(lock->donated_prios)) {
+    return;
   }
-  list_push_back(&thread_current()->donations, &p->elem);
+
+  struct thread* t = lock->holder;
+
+  // lock_acquire(&t->donated_lock);
+  /* Donate this threads priority to target thread */
+  array_insert_ordered_prio(t->donated_prios, p);
+  array_insert_ordered_prio(lock->donated_prios, p);
+  // lock_release(&t->donated_lock);
+
+  /* for through donations, call donate_priority on all */
+  for (struct lock** l = t->donation_locks; *l != NULL; l++) {
+      donate_priority(*l, p);
+  }
+
+  array_push_back_lock(thread_current()->donation_locks, lock);
+
   list_sort(&ready_list, prio_compare, NULL);
   check_prio(get_threads_priority(t));
 }
 
 void
-revoke_priority (struct thread *t, struct donated_prio *p) {
+revoke_priority (struct donated_prio *p) {
   // lock_acquire(&t->donated_lock);
-  list_remove(&p->elem);
+  array_remove_prio(thread_current()->donated_prios, p);
   // lock_release(&t->donated_lock);
-}
-
-static bool
-compare_donations (const struct list_elem *a,
-                   const struct list_elem *b,
-                   void *aux UNUSED) {
-  return list_entry(a, struct donated_prio, elem)->priority > 
-         list_entry(b, struct donated_prio, elem)->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -555,8 +551,9 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  list_init(&t->donated_prios);
   lock_init(&t->donated_lock);
+  array_init_prio(t->donated_prios);
+  array_init_lock(t->donation_locks);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
