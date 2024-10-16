@@ -3,7 +3,7 @@
 
 /* Set scaling factor used in fixed-point arithmetic */
 #define N_FRACTIONAL_BITS 14
-#define FACTOR (2 << N_FRACTIONAL_BITS)
+#define FACTOR (1 << N_FRACTIONAL_BITS )
 
 /* Converts an integer to a fixed-point value */
 #define INT_TO_FIXED(n) ((n) * FACTOR)
@@ -12,7 +12,7 @@
 #define FIXED_TO_INT_TRUNC(x) ((x) / FACTOR)
 
 /* Converts a fixed-point value to an integer via rounding */
-#define FIXED_TO_INT(x) (((x) >= 0) ? ((x) + FACTOR / 2) / FACTOR : ((x) - FACTOR / 2) / FACTOR)
+#define FIXED_TO_INT(x) (((x) >= 0) ? (((x) + (FACTOR / 2)) / FACTOR) : (((x) - (FACTOR / 2)) / FACTOR))
 
 /* Adds two fixed-point values */
 #define FIXED_ADD(x, y) ((x) + (y))
@@ -30,13 +30,14 @@
 #define INT_SUB_FIXED(n, x) (((n) * FACTOR) - (x))
 
 /* Multiplies two fixed-point values */
-#define FIXED_MUL(x, y) (((int64_t) x) * (y) / FACTOR)
+#define FIXED_MUL(x, y) (((int64_t)(x)) * (y) / FACTOR)
+
 
 /* Multiplies a fixed-point value with an integer */
 #define FIXED_MUL_INT(x, n) ((x) * (n))
 
 /* Divides two fixed-point values */
-#define FIXED_DIV(x, y) (((int64_t) x) * FACTOR / (y))
+#define FIXED_DIV(x, y) (((int64_t)(x)) * FACTOR / (y)) 
 
 /* Divides a fixed-point value by an integer */
 #define FIXED_DIV_INT(x, n) ((x) / (n))

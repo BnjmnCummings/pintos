@@ -191,8 +191,6 @@ thread_tick (void)
       /* Calculating new load average */
       int32_t old = load_avg;
       int32_t prev = FIXED_DIV_INT (FIXED_MUL_INT (old, 59), 60);
-      // ready threads in the calculation might not be = threads_ready()
-      // must NOT include the idle thread but must include the running thread
       int32_t new;
       if (thread_current() == idle_thread) {
         new = FIXED_DIV_INT (INT_TO_FIXED (threads_ready()), 60);
@@ -229,7 +227,7 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
   ASSERT(thread_mlfqs);
 
    /* Coefficient for recent CPU calculation */
-  int32_t numer = FIXED_MUL_INT (load_avg, 2); // not sure if this should be load_avg or thread_get_load_avg
+  int32_t numer = FIXED_MUL_INT (load_avg, 2);
   int32_t denom = FIXED_ADD_INT (numer, 1);
   int32_t coeff = FIXED_DIV (numer, denom);
 
@@ -243,8 +241,6 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
 {
   ASSERT(thread_mlfqs);
 
-  // spec:       priority =  PRI_MAX - (thread_current()->recent_cpu / 4) - (thread_current()->nice * 2);
-  // calculated: priority =  PRI_MAX - ( (thread_current()->recent_cpu / 4) + (thread_current()->nice * 2) );
   int32_t recent_cpu_quarter = FIXED_DIV_INT(thread_current()->recent_cpu, 4);
   int32_t priority_difference = FIXED_ADD_INT(recent_cpu_quarter, (thread_current()->nice * 2));
   int32_t new_priority = FIXED_TO_INT_TRUNC(INT_SUB_FIXED(PRI_MAX, priority_difference));
