@@ -284,6 +284,14 @@ prio_compare(const struct list_elem *a,
   return get_threads_priority(a1) > get_threads_priority(b1);
 }
 
+/* helper function to find max priority in a list */
+bool
+compare_max_prio(const struct list_elem *a,
+             const struct list_elem *b,
+             void *aux UNUSED) {
+  return !prio_compare(a, b, NULL);
+}
+
 /* Returns the name of the running thread. */
 const char *
 thread_name (void) 

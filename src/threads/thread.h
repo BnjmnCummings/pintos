@@ -127,6 +127,9 @@ void thread_unblock (struct thread *);
 bool prio_compare(const struct list_elem *a,
                   const struct list_elem *b,
                   void *aux UNUSED);
+bool compare_max_prio(const struct list_elem *a,
+                  const struct list_elem *b,
+                  void *aux UNUSED);
 void check_prio(int prio);
 
 struct thread *thread_current (void);
