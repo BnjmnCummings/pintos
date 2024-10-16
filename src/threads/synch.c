@@ -210,7 +210,7 @@ lock_init (struct lock *lock)
 void array_insert_ordered_prio(struct donated_prio** l, struct donated_prio* p)
 {
     int i;
-    for (i = MAX_DONATIONS - 1; (i >= 0 && (l[i] == NULL || l[i]->priority > p->priority)); i--) {
+    for (i = MAX_DONATIONS - 1; (i >= 0 && (l[i] == NULL || l[i]->priority < p->priority)); i--) {
         l[i + 1] = l[i];
     }
     l[i+1] = p;
@@ -223,9 +223,11 @@ void array_remove_prio(struct donated_prio** l, struct donated_prio* p)
     int i;
     for (i = 0; (l[i] != NULL && l[i] != p); i++) {}
     l[i] = NULL;
-    for (int j = i; l[j+1] != NULL; j++) {
+    int j;
+    for (j = i; l[j+1] != NULL; j++) {
       l[j] = l[j+1];
     }
+    l[j] = NULL;
 } 
 
 /* Add element to back of array 
@@ -339,9 +341,11 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
 
-  for (struct donated_prio** p = lock->donated_prios; *p != NULL; p++) {
-      revoke_priority(*p);
-      array_remove_prio(lock->donated_prios, *p);
+  for (int i = MAX_DONATIONS-1; i >= 0; i--) {
+      struct donated_prio* p = lock->donated_prios[i];
+      if (p == NULL) { continue; }
+      revoke_priority(p);
+      array_remove_prio(lock->donated_prios, p);
   }
 
   sema_up (&lock->semaphore);
