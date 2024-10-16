@@ -191,12 +191,7 @@ thread_tick (void)
       /* Calculating new load average */
       int32_t old = load_avg;
       int32_t prev = FIXED_DIV_INT (FIXED_MUL_INT (old, 59), 60);
-      int32_t new;
-      if (thread_current() == idle_thread) {
-        new = FIXED_DIV_INT (INT_TO_FIXED (threads_ready()), 60);
-      } else {
-        new = FIXED_DIV_INT (INT_TO_FIXED (threads_ready() + 1), 60);
-      }
+      int32_t new = FIXED_DIV_INT(INT_TO_FIXED(threads_ready() + (t != idle_thread)), 60);
       load_avg = FIXED_ADD (prev, new);
 
       /* Update recent CPU usage value for every thread */
@@ -206,12 +201,7 @@ thread_tick (void)
     /* Updates thread priority every 4 ticks*/
     if (timer_ticks () % PRI_UPDATE_FREQUENCY == 0) {
       thread_foreach (thread_update_priority, NULL);
-      /* check if updating should cause thread to yield */
-      if (!mlfq_is_empty()) {
-        check_prio(list_entry(
-                   list_front(&queue_array[mlfq_highest_priority()]),
-        struct thread, elem)->priority);
-      }
+      check_prio(mlfq_highest_priority());
     }
   }
 
@@ -244,17 +234,17 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
   int32_t recent_cpu_quarter = FIXED_DIV_INT(thread_current()->recent_cpu, 4);
   int32_t priority_difference = FIXED_ADD_INT(recent_cpu_quarter, (thread_current()->nice * 2));
   int32_t new_priority = FIXED_TO_INT_TRUNC(INT_SUB_FIXED(PRI_MAX, priority_difference));
+
+  /* caps priority between PRI_MIN and PRI_MAX */
   if (new_priority < PRI_MIN) {
     new_priority = PRI_MIN;
   } else if (new_priority > PRI_MAX) {
     new_priority = PRI_MAX;
   }
 
-  //we check if updating should cause thread to yield elsewhere
+  /* we check if updating should cause thread to yield elsewhere */
   t->priority = new_priority;
 
-  /* not sure about this equivalence.
-    rearrange ready threads but not the running thread*/
   if (thread_current()->status == THREAD_READY) {
     list_remove(&t->elem);
     mlfq_insert(t, new_priority);
@@ -779,7 +769,8 @@ mlfq_init(void)
   printf("done\n");
 }
 
-/* returns the highest priority non-empty queue in the mlfq. */
+/* returns the highest priority non-empty queue in the mlfq.
+ returns 0 if the mlfq is empty */
 static int
 mlfq_highest_priority(void)
 {
@@ -797,7 +788,8 @@ mlfq_is_empty(void)
 {
   ASSERT (thread_mlfqs);
 
-  for(int i = 0; i < QUEUE_ARRAY_SIZE; i++)
+  int i;
+  for(i = 0; i < QUEUE_ARRAY_SIZE; i++)
     if (!list_empty(&queue_array[i]))
       return false;
   return true;
