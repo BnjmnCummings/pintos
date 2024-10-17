@@ -210,7 +210,6 @@ lock_init (struct lock *lock)
  * PRE: array is not full */
 void array_insert_ordered_prio(struct donated_prio** l, struct donated_prio* p)
 {
-    if (array_contains_prio(l, p)) { return; }
     int i;
     for (i = MAX_DONATIONS - 2; (i >= 0 && (l[i] == NULL || l[i]->priority < p->priority)); i--) {
         l[i + 1] = l[i];
@@ -313,8 +312,8 @@ lock_acquire (struct lock *lock)
 
   bool donated = false;
 
+  struct donated_prio p;
   if (lock->holder != NULL && thread_get_priority() > lock->holder->priority) {
-    struct donated_prio p;
     p.priority = thread_get_priority();
     donate_priority(lock, &p);
     array_push_back_lock(thread_current()->donation_locks, lock);
@@ -327,6 +326,12 @@ lock_acquire (struct lock *lock)
 
   if (donated) {
     array_remove_lock(thread_current()->donation_locks, lock);
+    array_remove_prio(lock->donated_prios, &p);
+  }
+
+  /* Pick up all donations from the lock */
+  for (int i = 0; i < MAX_DONATIONS && lock->donated_prios[i] != NULL; i++) {
+    array_insert_ordered_prio(thread_current()->donated_prios, lock->donated_prios[i]);
   }
 }
 
@@ -363,9 +368,8 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
 
-  while (lock->donated_prios[0] != NULL) {
-      revoke_priority(lock->donated_prios[0]);
-      array_remove_prio(lock->donated_prios, lock->donated_prios[0]);
+  for (int i = 0; i < MAX_DONATIONS && lock->donated_prios[i] != NULL; i++) {
+      revoke_priority(lock->donated_prios[i]);
   }
 
   sema_up (&lock->semaphore);

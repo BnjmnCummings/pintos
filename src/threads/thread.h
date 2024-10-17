@@ -89,7 +89,7 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    struct donated_prio* donated_prios[MAX_DONATIONS];
+    struct donated_prio* donated_prios[3 * MAX_DONATIONS];
     struct lock donated_lock;
     struct lock* donation_locks[MAX_DONATIONS];
     struct list_elem allelem;           /* List element for all threads list. */
