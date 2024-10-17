@@ -43,7 +43,7 @@
      thread, if any). */
 
 static bool
-waiter_prio_compare(const struct list_elem *a,
+waiter_prio_compare (const struct list_elem *a,
                     const struct list_elem *b,
                     void *aux UNUSED);
 
@@ -74,7 +74,7 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_insert_ordered(&sema->waiters, &thread_current()->elem, &prio_compare, NULL);
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem, &prio_compare, NULL);
       thread_block ();
     }
   sema->value--;
@@ -121,14 +121,14 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
-    struct list_elem* max_elem = list_max(&sema->waiters, compare_max_prio, NULL);
+    struct list_elem* max_elem = list_max (&sema->waiters, compare_max_prio, NULL);
     struct thread *t = list_entry (max_elem, struct thread, elem);
-    list_remove(max_elem);
-    prio = get_threads_priority(t);
+    list_remove (max_elem);
+    prio = get_threads_priority (t);
     thread_unblock (t);
   }
   sema->value++;
-  check_prio(prio);
+  check_prio (prio);
   intr_set_level (old_level);
 }
 
@@ -190,7 +190,7 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
-  array_init_prio(lock->donated_prios);
+  array_init_prio (lock->donated_prios);
   sema_init (&lock->semaphore, 1);
 }
 
@@ -208,16 +208,16 @@ lock_init (struct lock *lock)
 
 /* Inserts a prio inside a list, ordered by priority highest to lowest
  * PRE: array is not full */
-void array_insert_ordered_prio(struct donated_prio** l, struct donated_prio* p)
+void array_insert_ordered_prio (struct donated_prio** l, struct donated_prio* p)
 {
     int i;
     for (i = MAX_DONATIONS - 2; (i >= 0 && (l[i] == NULL || l[i]->priority < p->priority)); i--) {
-        l[i + 1] = l[i];
+      l[i + 1] = l[i];
     }
     l[i+1] = p;
 }
 
-bool array_contains_prio(struct donated_prio** l, struct donated_prio* p) 
+bool array_contains_prio (struct donated_prio** l, struct donated_prio* p)
 {
     bool contains = false;
     for (int i = 0; i < MAX_DONATIONS && l[i] != NULL; i++) {
@@ -230,7 +230,7 @@ bool array_contains_prio(struct donated_prio** l, struct donated_prio* p)
 
 /* Removes element from array 
  * PRE: element is in the array */
-void array_remove_prio(struct donated_prio** l, struct donated_prio* p)
+void array_remove_prio (struct donated_prio** l, struct donated_prio* p)
 {
     int i;
     for (i = 0; (l[i] != NULL && l[i] != p); i++) {}
@@ -244,31 +244,31 @@ void array_remove_prio(struct donated_prio** l, struct donated_prio* p)
 
 /* Add element to back of array 
  * PRE: array is not full */
-void array_push_back_prio(struct donated_prio** l, struct donated_prio* p)
+void array_push_back_prio (struct donated_prio** l, struct donated_prio* p)
 {
     struct donated_prio** i;
     for (i = l; *i != NULL; i++) {}
     *i = p;
 }
 
-bool array_empty_prio(struct donated_prio** l)
+bool array_empty_prio (struct donated_prio** l)
 {
   return l[0] == NULL;
 }
 
-bool array_full_prio(struct donated_prio** l)
+bool array_full_prio (struct donated_prio** l)
 {
   return l[MAX_DONATIONS - 1] != NULL;
 }
 
-bool array_full_lock(struct lock** l)
+bool array_full_lock (struct lock** l)
 {
   return l[MAX_DONATIONS - 1] != NULL;
 }
 
 /* Removes element from array 
  * PRE: element is in the array */
-void array_remove_lock(struct lock** l, struct lock* p)
+void array_remove_lock (struct lock** l, struct lock* p)
 {
     int i;
     for (i = 0; (l[i] != NULL && l[i] != p); i++) {}
@@ -282,21 +282,21 @@ void array_remove_lock(struct lock** l, struct lock* p)
 
 /* Add element to back of array 
  * PRE: array is not full */
-void array_push_back_lock(struct lock** l, struct lock* p)
+void array_push_back_lock (struct lock** l, struct lock* p)
 {
     struct lock** i;
     for (i = l; *i != NULL; i++) {}
     *i = p;
 }
 
-void array_init_prio(struct donated_prio** p)
+void array_init_prio (struct donated_prio** p)
 {
   for (int i = 0; i < MAX_DONATIONS; i++) {
     p[i] = NULL;
   }
 }
 
-void array_init_lock(struct lock** p)
+void array_init_lock (struct lock** p)
 {
   for (int i = 0; i < MAX_DONATIONS; i++) {
     p[i] = NULL;
@@ -313,10 +313,10 @@ lock_acquire (struct lock *lock)
   bool donated = false;
 
   struct donated_prio p;
-  if (lock->holder != NULL && thread_get_priority() > lock->holder->priority) {
-    p.priority = thread_get_priority();
-    donate_priority(lock, &p);
-    array_push_back_lock(thread_current()->donation_locks, lock);
+  if (lock->holder != NULL && thread_get_priority () > lock->holder->priority) {
+    p.priority = thread_get_priority ();
+    donate_priority (lock, &p);
+    array_push_back_lock (thread_current ()->donation_locks, lock);
     donated = true;
   }
 
@@ -325,13 +325,13 @@ lock_acquire (struct lock *lock)
   lock->holder = thread_current ();
 
   if (donated) {
-    array_remove_lock(thread_current()->donation_locks, lock);
-    array_remove_prio(lock->donated_prios, &p);
+    array_remove_lock (thread_current ()->donation_locks, lock);
+    array_remove_prio (lock->donated_prios, &p);
   }
 
   /* Pick up all donations from the lock */
   for (int i = 0; i < MAX_DONATIONS && lock->donated_prios[i] != NULL; i++) {
-    array_insert_ordered_prio(thread_current()->donated_prios, lock->donated_prios[i]);
+    array_insert_ordered_prio (thread_current ()->donated_prios, lock->donated_prios[i]);
   }
 }
 
@@ -369,7 +369,7 @@ lock_release (struct lock *lock)
   lock->holder = NULL;
 
   for (int i = 0; i < MAX_DONATIONS && lock->donated_prios[i] != NULL; i++) {
-      revoke_priority(lock->donated_prios[i]);
+      revoke_priority (lock->donated_prios[i]);
   }
 
   sema_up (&lock->semaphore);
@@ -396,11 +396,11 @@ struct semaphore_elem
 
 /* helper function to order waiters inside condition of a monitor by priority */
 static bool
-waiter_prio_compare(const struct list_elem *a,
+waiter_prio_compare (const struct list_elem *a,
                     const struct list_elem *b,
                     void *aux UNUSED) {
-    int a1 = list_entry(a, struct semaphore_elem, elem)->priority;
-    int b1 = list_entry(b, struct semaphore_elem, elem)->priority;
+    int a1 = list_entry (a, struct semaphore_elem, elem)->priority;
+    int b1 = list_entry (b, struct semaphore_elem, elem)->priority;
     return a1 > b1;
 }
 
@@ -446,10 +446,10 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  waiter.priority = thread_get_priority();
+  waiter.priority = thread_get_priority ();
 
   /* Insert ordered to implement the behaviour of a priority queue */
-  list_insert_ordered(&cond->waiters, &waiter.elem, &waiter_prio_compare, NULL);
+  list_insert_ordered (&cond->waiters, &waiter.elem, &waiter_prio_compare, NULL);
 
   lock_release (lock);
   sema_down (&waiter.semaphore);

@@ -80,10 +80,10 @@ void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 static void thread_update_recent_cpu (struct thread *t, void *aux UNUSED);
 static void thread_update_priority (struct thread *t, void *aux UNUSED);
-static void mlfq_init(void);
-static int mlfq_highest_priority(void);
-static bool mlfq_is_empty(void);
-static void mlfq_insert(struct thread *t);
+static void mlfq_init (void);
+static int mlfq_highest_priority (void);
+static bool mlfq_is_empty (void);
+static void mlfq_insert (struct thread *t);
 
 
 /* Initializes the threading system by transforming the code
@@ -110,7 +110,7 @@ thread_init (void)
 
   /* initialise mlfqs array */
   if (thread_mlfqs)
-    mlfq_init();
+    mlfq_init ();
   else
     list_init (&ready_list);
 
@@ -173,7 +173,6 @@ thread_tick (void)
 {
   struct thread *t = thread_current ();
 
-
   /* Update statistics. */
   if (t == idle_thread)
     idle_ticks++;
@@ -193,7 +192,7 @@ thread_tick (void)
       /* Calculating new load average */
       int32_t old = load_avg;
       int32_t prev = FIXED_DIV_INT (FIXED_MUL_INT (old, 59), 60);
-      int32_t new = FIXED_DIV_INT(INT_TO_FIXED(threads_ready() + (t != idle_thread)), 60);
+      int32_t new = FIXED_DIV_INT (INT_TO_FIXED (threads_ready () + (t != idle_thread)), 60);
       load_avg = FIXED_ADD (prev, new);
 
       /* Update recent CPU usage value for every thread */
@@ -203,7 +202,7 @@ thread_tick (void)
     /* Updates thread priority every 4 ticks*/
     if (timer_ticks () % PRI_UPDATE_FREQUENCY == 0) {
       thread_foreach (thread_update_priority, NULL);
-      check_prio(mlfq_highest_priority());
+      check_prio (mlfq_highest_priority ());
     }
   }
 
@@ -237,9 +236,9 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
     return;
   }
 
-  int32_t recent_cpu_quarter = FIXED_DIV_INT(thread_current()->recent_cpu, 4);
-  int32_t priority_difference = FIXED_ADD_INT(recent_cpu_quarter, (thread_current()->nice * 2));
-  int32_t new_priority = FIXED_TO_INT_TRUNC(INT_SUB_FIXED(PRI_MAX, priority_difference));
+  int32_t recent_cpu_quarter = FIXED_DIV_INT (thread_current ()->recent_cpu, 4);
+  int32_t priority_difference = FIXED_ADD_INT (recent_cpu_quarter, (thread_current ()->nice * 2));
+  int32_t new_priority = FIXED_TO_INT_TRUNC (INT_SUB_FIXED (PRI_MAX, priority_difference));
 
   /* caps priority between PRI_MIN and PRI_MAX */
   if (new_priority < PRI_MIN) {
@@ -251,9 +250,9 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
   /* we check if updating should cause thread to yield elsewhere */
   t->priority = new_priority;
 
-  if (thread_current()->status == THREAD_READY) {
-    list_remove(&t->elem);
-    mlfq_insert(t);
+  if (thread_current ()->status == THREAD_READY) {
+    list_remove (&t->elem);
+    mlfq_insert (t);
   }
 }
 
@@ -292,7 +291,6 @@ thread_create (const char *name, int priority,
   enum intr_level old_level;
 
   ASSERT (function != NULL);
-
   /* Allocate thread. */
   t = palloc_get_page (PAL_ZERO);
   if (t == NULL)
@@ -319,29 +317,34 @@ thread_create (const char *name, int priority,
 
   /* Stack frame for switch_threads(). */
   sf = alloc_frame (t, sizeof *sf);
+
+
+
   sf->eip = switch_entry;
   sf->ebp = 0;
 
   intr_set_level (old_level);
 
   /* inherit niceness and recent_cpu from current thread */
-  t->nice = thread_current()->nice;
-  t->recent_cpu = thread_current()->recent_cpu;
+  t->nice = thread_current ()->nice;
+  t->recent_cpu = thread_current ()->recent_cpu;
 
   /* Add to run queue. */
   thread_unblock (t);
-  check_prio(t->priority);
+  check_prio (t->priority);
 
   return tid;
 }
 
 /* if new priority is higher than current thread, yield CPU */
-void check_prio(int prio) {
-  if (thread_current() != idle_thread && thread_get_priority() < prio) {
-    if (intr_context()) {
-      intr_yield_on_return();
+void
+check_prio (int prio)
+{
+  if (thread_current() != idle_thread && thread_get_priority () < prio) {
+    if (intr_context ()) {
+      intr_yield_on_return ();
     } else {
-      thread_yield();
+      thread_yield ();
     }
   }
 }
@@ -380,11 +383,11 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   t->status = THREAD_READY;
-  if(thread_mlfqs) {
-    mlfq_insert(t);
-    thread_update_priority(t, NULL);
+  if (thread_mlfqs) {
+    mlfq_insert (t);
+    thread_update_priority (t, NULL);
   } else {
-    list_insert_ordered(&ready_list, &t->elem, prio_compare, NULL);
+    list_insert_ordered (&ready_list, &t->elem, prio_compare, NULL);
   }
 
   intr_set_level (old_level);
@@ -392,20 +395,20 @@ thread_unblock (struct thread *t)
 
 /* helper function to order ready_list by priority */
 bool
-prio_compare(const struct list_elem *a,
+prio_compare (const struct list_elem *a,
              const struct list_elem *b,
              void *aux UNUSED) {
-  struct thread *a1 = list_entry(a, struct thread, elem);
-  struct thread *b1 = list_entry(b, struct thread, elem);
-  return get_threads_priority(a1) > get_threads_priority(b1);
+  struct thread *a1 = list_entry (a, struct thread, elem);
+  struct thread *b1 = list_entry (b, struct thread, elem);
+  return get_threads_priority (a1) > get_threads_priority (b1);
 }
 
 /* helper function to find max priority in a list */
 bool
-compare_max_prio(const struct list_elem *a,
+compare_max_prio (const struct list_elem *a,
              const struct list_elem *b,
              void *aux UNUSED) {
-  return !prio_compare(a, b, NULL);
+  return !prio_compare (a, b, NULL);
 }
 
 /* Returns the name of the running thread. */
@@ -456,7 +459,7 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  list_remove (&thread_current()->allelem);
+  list_remove (&thread_current ()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
@@ -476,9 +479,9 @@ thread_yield (void)
 
   if (cur != idle_thread) {
     if (thread_mlfqs)
-      mlfq_insert(cur);
+      mlfq_insert (cur);
     else
-      list_insert_ordered(&ready_list, &cur->elem, prio_compare, NULL);
+      list_insert_ordered (&ready_list, &cur->elem, prio_compare, NULL);
   }
 
   cur->status = THREAD_READY;
@@ -510,8 +513,8 @@ thread_set_priority (int new_priority)
   ASSERT (!thread_mlfqs);
 
   thread_current ()->priority = new_priority;
-  if (!list_empty(&ready_list)) {
-      check_prio(list_entry(list_front(&ready_list),
+  if (!list_empty (&ready_list)) {
+      check_prio (list_entry (list_front (&ready_list),
       struct thread, elem)->priority);
   }
 }
@@ -520,12 +523,13 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  return get_threads_priority(thread_current());
+  return get_threads_priority (thread_current ());
 }
 
 int
-get_threads_priority(struct thread *t) {
-  if (!array_empty_prio(t->donated_prios)) {
+get_threads_priority (struct thread *t)
+{
+  if (!array_empty_prio (t->donated_prios)) {
     if (t->donated_prios[0]->priority > t->priority) {
       return t->donated_prios[0]->priority;
     }
@@ -534,56 +538,56 @@ get_threads_priority(struct thread *t) {
 }
 
 void
-donate_priority (struct lock *lock, struct donated_prio *p) {
+donate_priority (struct lock *lock, struct donated_prio *p)
+{
 
   struct thread* t = lock->holder;
 
-  if (array_full_prio(lock->donated_prios) || array_full_prio(t->donated_prios)) {
-    return;
-  }
+  ASSERT (!array_full_prio (lock->donated_prios));
+  ASSERT (!array_full_prio (t->donated_prios));
 
-  // lock_acquire(&t->donated_lock);
+  // lock_acquire (&t->donated_lock);
   /* Donate this threads priority to target thread */
-  array_insert_ordered_prio(t->donated_prios, p);
-  array_insert_ordered_prio(lock->donated_prios, p);
-  // lock_release(&t->donated_lock);
+  array_insert_ordered_prio (t->donated_prios, p);
+  array_insert_ordered_prio (lock->donated_prios, p);
+  // lock_release (&t->donated_lock);
 
   /* for through donations, call donate_priority on all */
   for (struct lock** l = t->donation_locks; *l != NULL; l++) {
-      if (!array_full_lock((*l)->holder->donation_locks)) {
-        donate_priority(*l, p);
-      }
+      ASSERT (!array_full_lock ((*l)->holder->donation_locks));
+      donate_priority (*l, p);
   }
 
-  list_sort(&ready_list, prio_compare, NULL);
+  list_sort (&ready_list, prio_compare, NULL);
 }
 
 void
-revoke_priority (struct donated_prio *p) {
+revoke_priority (struct donated_prio *p)
+{
   // lock_acquire(&t->donated_lock);
-  array_remove_prio(thread_current()->donated_prios, p);
-  // lock_release(&t->donated_lock);
+  array_remove_prio (thread_current ()->donated_prios, p);
+  // lock_release (&t->donated_lock);
 }
 
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice) 
 {
-  ASSERT(thread_mlfqs);
+  ASSERT (thread_mlfqs);
 
-  enum intr_level old_level = intr_disable();
+  enum intr_level old_level = intr_disable ();
 
   thread_current ()->nice = nice;
-  thread_update_priority(thread_current(), NULL);
+  thread_update_priority (thread_current (), NULL);
 
   /* check if updating should cause thread to yield */
-  if (!mlfq_is_empty()) {
-    check_prio(list_entry(
-      list_front(&queue_array[mlfq_highest_priority()]),
+  if (!mlfq_is_empty ()) {
+    check_prio (list_entry (
+      list_front (&queue_array[mlfq_highest_priority ()]),
       struct thread, elem)->priority);
   }
 
-  intr_set_level(old_level);
+  intr_set_level (old_level);
 }
 
 /* Returns the current thread's nice value. */
@@ -604,7 +608,7 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void) 
 {
-  return FIXED_TO_INT (FIXED_MUL_INT (thread_current()->recent_cpu, 100));
+  return FIXED_TO_INT (FIXED_MUL_INT (thread_current ()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -693,10 +697,11 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  lock_init(&t->donated_lock);
-  array_init_prio(t->donated_prios);
-  array_init_lock(t->donation_locks);
   t->magic = THREAD_MAGIC;
+
+  lock_init (&t->donated_lock);
+  array_init_prio (t->donated_prios);
+  array_init_lock (t->donation_locks);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -724,11 +729,11 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void) 
 {
-  if(thread_mlfqs) {
-    if(mlfq_is_empty())
+  if (thread_mlfqs) {
+    if (mlfq_is_empty ())
       return idle_thread;
     else
-      return list_entry (list_pop_front(&queue_array[mlfq_highest_priority()]),
+      return list_entry (list_pop_front (&queue_array[mlfq_highest_priority ()]),
                          struct thread, elem);
   } else {
     if (list_empty (&ready_list))
@@ -777,7 +782,7 @@ thread_schedule_tail (struct thread *prev)
      thread.  This must happen late so that thread_exit() doesn't
      pull out the rug under itself.  (We don't free
      initial_thread because its memory was not obtained via
-     palloc().) */
+     palloc ().) */
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
     {
       ASSERT (prev != cur);
@@ -824,45 +829,45 @@ allocate_tid (void)
 
 /* initialises the mlfq by creating an empty list behind each index. */
 static void
-mlfq_init(void)
+mlfq_init (void)
 {
   ASSERT (thread_mlfqs);
 
-  for(int i = 0; i < QUEUE_ARRAY_SIZE; i++)
-    list_init(&queue_array[i]);
+  for (int i = 0; i < QUEUE_ARRAY_SIZE; i++)
+    list_init (&queue_array[i]);
 }
 
 /* returns the highest priority non-empty queue in the mlfq.
  returns 0 if the mlfq is empty */
 static int
-mlfq_highest_priority(void)
+mlfq_highest_priority (void)
 {
   ASSERT (thread_mlfqs);
 
   int index = PRI_MAX;
-  while (index > 0 && list_empty(&queue_array[index]))
+  while (index > 0 && list_empty (&queue_array[index]))
     index--;
   return index;
 }
 
 /* returns true if each queue in the mlfq is empty. */
 static bool
-mlfq_is_empty(void)
+mlfq_is_empty (void)
 {
   ASSERT (thread_mlfqs);
 
   int i;
-  for(i = 0; i < QUEUE_ARRAY_SIZE; i++)
-    if (!list_empty(&queue_array[i]))
+  for (i = 0; i < QUEUE_ARRAY_SIZE; i++)
+    if (!list_empty (&queue_array[i]))
       return false;
   return true;
 }
 
 static void
-mlfq_insert(struct thread *t)
+mlfq_insert (struct thread *t)
 {
   ASSERT (thread_mlfqs);
-  list_push_back(&queue_array[t->priority], &t->elem);
+  list_push_back (&queue_array[t->priority], &t->elem);
 }
 
 /* Offset of `stack' member within `struct thread'.

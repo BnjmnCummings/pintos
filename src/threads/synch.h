@@ -12,13 +12,13 @@ struct donated_prio
     int priority;
 };
 
-void array_insert_ordered_prio(struct donated_prio**, struct donated_prio*);
-void array_remove_prio(struct donated_prio**, struct donated_prio*);
-void array_push_back_prio(struct donated_prio**, struct donated_prio*);
-bool array_empty_prio(struct donated_prio**);
-bool array_full_prio(struct donated_prio**);
-void array_init_prio(struct donated_prio**);
-bool array_contains_prio(struct donated_prio**, struct donated_prio*);
+void array_insert_ordered_prio (struct donated_prio**, struct donated_prio*);
+void array_remove_prio (struct donated_prio**, struct donated_prio*);
+void array_push_back_prio (struct donated_prio**, struct donated_prio*);
+bool array_empty_prio (struct donated_prio**);
+bool array_full_prio (struct donated_prio**);
+void array_init_prio (struct donated_prio**);
+bool array_contains_prio (struct donated_prio**, struct donated_prio*);
 
 /* A counting semaphore. */
 struct semaphore 
@@ -42,10 +42,10 @@ struct lock
   };
 
 
-bool array_full_lock(struct lock**);
-void array_remove_lock(struct lock**, struct lock*);
-void array_push_back_lock(struct lock**, struct lock*);
-void array_init_lock(struct lock**);
+bool array_full_lock (struct lock**);
+void array_remove_lock (struct lock**, struct lock*);
+void array_push_back_lock (struct lock**, struct lock*);
+void array_init_lock (struct lock**);
 
 
 void lock_init (struct lock *);

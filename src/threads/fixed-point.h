@@ -3,7 +3,7 @@
 
 /* Set scaling factor used in fixed-point arithmetic */
 #define N_FRACTIONAL_BITS 14
-#define FACTOR (1 << N_FRACTIONAL_BITS )
+#define FACTOR (1 << N_FRACTIONAL_BITS)
 
 /* Converts an integer to a fixed-point value */
 #define INT_TO_FIXED(n) ((n) * FACTOR)
@@ -31,7 +31,6 @@
 
 /* Multiplies two fixed-point values */
 #define FIXED_MUL(x, y) (((int64_t)(x)) * (y) / FACTOR)
-
 
 /* Multiplies a fixed-point value with an integer */
 #define FIXED_MUL_INT(x, n) ((x) * (n))

@@ -119,17 +119,6 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-/* Represents a queue of threads that all share the same
-   priority level, which ranges from 0 to 63. Threads are run
-   by priority and then in round-robin order. This is only used
-   in the advanced scheduler implementation. */
-struct priority_class_queue
-  {
-     int priority;                      /* Priority of all threads in queue. */
-     struct list thread_queue;          /* A queue of threads. */
-     struct list_elem elem;             /* List element. */
-  };
-
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "mlfqs". */
@@ -137,7 +126,7 @@ extern bool thread_mlfqs;
 
 void thread_init (void);
 void thread_start (void);
-size_t threads_ready(void);
+size_t threads_ready (void);
 
 void thread_tick (void);
 void thread_print_stats (void);
@@ -148,13 +137,13 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 void thread_block (void);
 void thread_unblock (struct thread *);
 
-bool prio_compare(const struct list_elem *a,
+bool prio_compare (const struct list_elem *a,
                   const struct list_elem *b,
                   void *aux UNUSED);
-bool compare_max_prio(const struct list_elem *a,
+bool compare_max_prio (const struct list_elem *a,
                   const struct list_elem *b,
                   void *aux UNUSED);
-void check_prio(int prio);
+void check_prio (int prio);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
