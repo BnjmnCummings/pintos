@@ -23,6 +23,17 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+ 
+/* niceness, revent_cpu and load_avg all start at 0 */
+#define NICE_DEFAULT 0      
+#define RECENT_CPU_DEFAULT 0 
+#define INITIAL_LOAD_AVG 0
+
+/* priority is updated for every thread once every 4 ticks */
+#define PRI_UPDATE_FREQUENCY 4
+
+/* size of the array containing each ready queue*/
+#define QUEUE_ARRAY_SIZE 64
 
 /* A kernel thread or user process.
 
@@ -88,6 +99,8 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int nice;                           /* Niceness. */
+    int32_t recent_cpu;                 /* Thread recent CPU usage. */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
@@ -100,6 +113,17 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+  };
+
+/* Represents a queue of threads that all share the same
+   priority level, which ranges from 0 to 63. Threads are run
+   by priority and then in round-robin order. This is only used
+   in the advanced scheduler implementation. */
+struct priority_class_queue
+  {
+     int priority;                      /* Priority of all threads in queue. */
+     struct list thread_queue;          /* A queue of threads. */
+     struct list_elem elem;             /* List element. */
   };
 
 /* If false (default), use round-robin scheduler.
