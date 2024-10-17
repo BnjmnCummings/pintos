@@ -108,13 +108,13 @@ thread_init (void)
 
   list_init (&all_list);
 
-  //initialise mlfqs array
+  /* initialise mlfqs array */
   if (thread_mlfqs)
     mlfq_init();
   else
     list_init (&ready_list);
 
-  //initiate system-wide load average as zero
+  /* initiate system-wide load average as zero */
   load_avg = INITIAL_LOAD_AVG;
 
   /* Set up a thread structure for the running thread. */
@@ -123,7 +123,7 @@ thread_init (void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 
-  //niceness defaults to 0:
+  /* initialise start thread nicenes an recent cpu */
   initial_thread->nice = NICE_DEFAULT;
   initial_thread->recent_cpu = RECENT_CPU_DEFAULT;
 
@@ -324,7 +324,7 @@ thread_create (const char *name, int priority,
 
   intr_set_level (old_level);
 
-  //inherit niceness and recent_cpu from current thread
+  /* inherit niceness and recent_cpu from current thread */
   t->nice = thread_current()->nice;
   t->recent_cpu = thread_current()->recent_cpu;
 
@@ -830,7 +830,6 @@ mlfq_init(void)
 
   for(int i = 0; i < QUEUE_ARRAY_SIZE; i++)
     list_init(&queue_array[i]);
-  printf("done\n");
 }
 
 /* returns the highest priority non-empty queue in the mlfq.
