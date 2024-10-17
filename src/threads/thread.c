@@ -85,6 +85,7 @@ static int mlfq_highest_priority(void);
 static bool mlfq_is_empty(void);
 static void mlfq_insert(struct thread *t);
 
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -336,7 +337,7 @@ thread_create (const char *name, int priority,
 
 /* if new priority is higher than current thread, yield CPU */
 void check_prio(int prio) {
-    if (thread_current()->priority < prio) {
+    if (thread_get_priority() < prio) {
     if (intr_context()) {
       intr_yield_on_return();
     } else {
@@ -389,14 +390,22 @@ thread_unblock (struct thread *t)
   intr_set_level (old_level);
 }
 
-/* helper function to order read_list by priority */
+/* helper function to order ready_list by priority */
 bool
 prio_compare(const struct list_elem *a,
              const struct list_elem *b,
              void *aux UNUSED) {
   struct thread *a1 = list_entry(a, struct thread, elem);
   struct thread *b1 = list_entry(b, struct thread, elem);
-  return a1->priority > b1->priority;
+  return get_threads_priority(a1) > get_threads_priority(b1);
+}
+
+/* helper function to find max priority in a list */
+bool
+compare_max_prio(const struct list_elem *a,
+             const struct list_elem *b,
+             void *aux UNUSED) {
+  return !prio_compare(a, b, NULL);
 }
 
 /* Returns the name of the running thread. */
@@ -511,7 +520,49 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  return get_threads_priority(thread_current());
+}
+
+int
+get_threads_priority(struct thread *t) {
+  if (!array_empty_prio(t->donated_prios)) {
+    if (t->donated_prios[0]->priority > t->priority) {
+      return t->donated_prios[0]->priority;
+    }
+  }
+  return t->priority;
+}
+
+void
+donate_priority (struct lock *lock, struct donated_prio *p) {
+
+  struct thread* t = lock->holder;
+
+  if (array_full_prio(lock->donated_prios) || array_full_prio(t->donated_prios)) {
+    return;
+  }
+
+  // lock_acquire(&t->donated_lock);
+  /* Donate this threads priority to target thread */
+  array_insert_ordered_prio(t->donated_prios, p);
+  array_insert_ordered_prio(lock->donated_prios, p);
+  // lock_release(&t->donated_lock);
+
+  /* for through donations, call donate_priority on all */
+  for (struct lock** l = t->donation_locks; *l != NULL; l++) {
+      if (!array_full_lock((*l)->holder->donation_locks)) {
+        donate_priority(*l, p);
+      }
+  }
+
+  list_sort(&ready_list, prio_compare, NULL);
+}
+
+void
+revoke_priority (struct donated_prio *p) {
+  // lock_acquire(&t->donated_lock);
+  array_remove_prio(thread_current()->donated_prios, p);
+  // lock_release(&t->donated_lock);
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -642,6 +693,9 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  lock_init(&t->donated_lock);
+  array_init_prio(t->donated_prios);
+  array_init_lock(t->donation_locks);
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
