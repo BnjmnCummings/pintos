@@ -318,8 +318,6 @@ thread_create (const char *name, int priority,
   /* Stack frame for switch_threads(). */
   sf = alloc_frame (t, sizeof *sf);
 
-
-
   sf->eip = switch_entry;
   sf->ebp = 0;
 
@@ -529,7 +527,7 @@ thread_get_priority (void)
 int
 get_threads_priority (struct thread *t)
 {
-  if (!array_empty_prio (t->donated_prios)) {
+  if (t->donated_prios[0] != NULL) {
     if (t->donated_prios[0]->priority > t->priority) {
       return t->donated_prios[0]->priority;
     }
@@ -540,23 +538,20 @@ get_threads_priority (struct thread *t)
 void
 donate_priority (struct lock *lock, struct donated_prio *p)
 {
-
   struct thread* t = lock->holder;
 
   ASSERT (!array_full_prio (lock->donated_prios));
   ASSERT (!array_full_prio (t->donated_prios));
 
-  // lock_acquire (&t->donated_lock);
   /* Donate this threads priority to target thread */
+  // lock_acquire (&t->donated_lock);
   array_insert_ordered_prio (t->donated_prios, p);
   array_insert_ordered_prio (lock->donated_prios, p);
   // lock_release (&t->donated_lock);
 
   /* for through donations, call donate_priority on all */
-  for (struct lock** l = t->donation_locks; *l != NULL; l++) {
-      ASSERT (!array_full_lock ((*l)->holder->donation_locks));
-      donate_priority (*l, p);
-  }
+  for (struct lock** l = t->donation_locks; *l != NULL; l++)
+    donate_priority (*l, p);
 
   list_sort (&ready_list, prio_compare, NULL);
 }
@@ -856,8 +851,7 @@ mlfq_is_empty (void)
 {
   ASSERT (thread_mlfqs);
 
-  int i;
-  for (i = 0; i < QUEUE_ARRAY_SIZE; i++)
+  for (int i = 0; i < QUEUE_ARRAY_SIZE; i++)
     if (!list_empty (&queue_array[i]))
       return false;
   return true;

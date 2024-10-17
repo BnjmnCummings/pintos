@@ -47,7 +47,7 @@ waiter_prio_compare (const struct list_elem *a,
                     const struct list_elem *b,
                     void *aux UNUSED);
 
-        void
+void
 sema_init (struct semaphore *sema, unsigned value) 
 {
   ASSERT (sema != NULL);
@@ -208,7 +208,8 @@ lock_init (struct lock *lock)
 
 /* Inserts a prio inside a list, ordered by priority highest to lowest
  * PRE: array is not full */
-void array_insert_ordered_prio (struct donated_prio** l, struct donated_prio* p)
+void
+array_insert_ordered_prio (struct donated_prio** l, struct donated_prio* p)
 {
     int i;
     for (i = MAX_DONATIONS - 2; (i >= 0 && (l[i] == NULL || l[i]->priority < p->priority)); i--) {
@@ -217,7 +218,8 @@ void array_insert_ordered_prio (struct donated_prio** l, struct donated_prio* p)
     l[i+1] = p;
 }
 
-bool array_contains_prio (struct donated_prio** l, struct donated_prio* p)
+bool
+array_contains_prio (struct donated_prio** l, struct donated_prio* p)
 {
     bool contains = false;
     for (int i = 0; i < MAX_DONATIONS && l[i] != NULL; i++) {
@@ -230,7 +232,8 @@ bool array_contains_prio (struct donated_prio** l, struct donated_prio* p)
 
 /* Removes element from array 
  * PRE: element is in the array */
-void array_remove_prio (struct donated_prio** l, struct donated_prio* p)
+void
+array_remove_prio (struct donated_prio** l, struct donated_prio* p)
 {
     int i;
     for (i = 0; (l[i] != NULL && l[i] != p); i++) {}
@@ -244,31 +247,24 @@ void array_remove_prio (struct donated_prio** l, struct donated_prio* p)
 
 /* Add element to back of array 
  * PRE: array is not full */
-void array_push_back_prio (struct donated_prio** l, struct donated_prio* p)
+void
+array_push_back_prio (struct donated_prio** l, struct donated_prio* p)
 {
     struct donated_prio** i;
     for (i = l; *i != NULL; i++) {}
     *i = p;
 }
 
-bool array_empty_prio (struct donated_prio** l)
-{
-  return l[0] == NULL;
-}
-
-bool array_full_prio (struct donated_prio** l)
-{
-  return l[MAX_DONATIONS - 1] != NULL;
-}
-
-bool array_full_lock (struct lock** l)
+bool
+array_full_prio (struct donated_prio** l)
 {
   return l[MAX_DONATIONS - 1] != NULL;
 }
 
 /* Removes element from array 
  * PRE: element is in the array */
-void array_remove_lock (struct lock** l, struct lock* p)
+void
+array_remove_lock (struct lock** l, struct lock* p)
 {
     int i;
     for (i = 0; (l[i] != NULL && l[i] != p); i++) {}
@@ -282,21 +278,24 @@ void array_remove_lock (struct lock** l, struct lock* p)
 
 /* Add element to back of array 
  * PRE: array is not full */
-void array_push_back_lock (struct lock** l, struct lock* p)
+void
+array_push_back_lock (struct lock** l, struct lock* p)
 {
     struct lock** i;
     for (i = l; *i != NULL; i++) {}
     *i = p;
 }
 
-void array_init_prio (struct donated_prio** p)
+void
+array_init_prio (struct donated_prio** p)
 {
   for (int i = 0; i < MAX_DONATIONS; i++) {
     p[i] = NULL;
   }
 }
 
-void array_init_lock (struct lock** p)
+void
+array_init_lock (struct lock** p)
 {
   for (int i = 0; i < MAX_DONATIONS; i++) {
     p[i] = NULL;

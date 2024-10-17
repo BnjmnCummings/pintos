@@ -163,9 +163,9 @@ int get_threads_priority (struct thread *t);
 void donate_priority (struct lock *t, struct donated_prio *p);
 void revoke_priority (struct donated_prio *p);
 
-
 int thread_get_nice (void);
 void thread_set_nice (int);
+
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
