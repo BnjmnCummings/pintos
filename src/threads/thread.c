@@ -337,7 +337,7 @@ thread_create (const char *name, int priority,
 
 /* if new priority is higher than current thread, yield CPU */
 void check_prio(int prio) {
-    if (thread_get_priority() < prio) {
+  if (thread_current() != idle_thread && thread_get_priority() < prio) {
     if (intr_context()) {
       intr_yield_on_return();
     } else {
