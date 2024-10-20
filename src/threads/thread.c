@@ -185,7 +185,8 @@ thread_tick (void)
 
   if (thread_mlfqs) {
     /* Increments running thread's recent CPU usage */
-    t->recent_cpu = FIXED_ADD_INT (t->recent_cpu, 1);
+    if (t != idle_thread)
+      t->recent_cpu = FIXED_ADD_INT (t->recent_cpu, 1);
 
     /* Updates statistics every second */
     if (timer_ticks () % TIMER_FREQ == 0) {
@@ -217,7 +218,7 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 {
   ASSERT(thread_mlfqs);
 
-   /* Coefficient for recent CPU calculation */
+  /* Coefficient for recent CPU calculation */
   int32_t numer = FIXED_MUL_INT (load_avg, 2);
   int32_t denom = FIXED_ADD_INT (numer, 1);
   int32_t coeff = FIXED_DIV (numer, denom);
@@ -247,12 +248,15 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
     new_priority = PRI_MAX;
   }
 
-  /* we check if updating should cause thread to yield elsewhere */
-  t->priority = new_priority;
+  /* preserve space in the queue if priority is unchanged*/
+  if (t->priority != new_priority) {
+    /* we check if updating should cause thread to yield elsewhere */
+    t->priority = new_priority;
 
-  if (thread_current ()->status == THREAD_READY) {
-    list_remove (&t->elem);
-    mlfq_insert (t);
+    if (thread_current ()->status == THREAD_READY) {
+      list_remove (&t->elem);
+      mlfq_insert (t);
+    }
   }
 }
 
@@ -850,8 +854,8 @@ static bool
 mlfq_is_empty (void)
 {
   ASSERT (thread_mlfqs);
-
-  for (int i = 0; i < QUEUE_ARRAY_SIZE; i++)
+  int i;
+  for (i = 0; i < QUEUE_ARRAY_SIZE; i++)
     if (!list_empty (&queue_array[i]))
       return false;
   return true;
