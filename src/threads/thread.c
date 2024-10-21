@@ -603,9 +603,10 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-  enum intr_level old_level = intr_disable ();
-  return FIXED_TO_INT (FIXED_MUL_INT (load_avg, 100));
-  intr_set_level(old_level);
+  enum intr_level old_level = intr_disable (); 
+  int load = FIXED_TO_INT (FIXED_MUL_INT (load_avg, 100));
+  intr_set_level (old_level);
+  return load;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
