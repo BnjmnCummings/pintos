@@ -261,41 +261,8 @@ array_full_prio (struct donated_prio** l)
   return l[MAX_DONATIONS - 1] != NULL;
 }
 
-/* Removes element from array 
- * PRE: element is in the array */
-void
-array_remove_lock (struct lock** l, struct lock* p)
-{
-    int i;
-    for (i = 0; (l[i] != NULL && l[i] != p); i++) {}
-    l[i] = NULL;
-    int j;
-    for (j = i; l[j+1] != NULL; j++) {
-      l[j] = l[j+1];
-    }
-    l[j] = NULL;
-} 
-
-/* Add element to back of array 
- * PRE: array is not full */
-void
-array_push_back_lock (struct lock** l, struct lock* p)
-{
-    struct lock** i;
-    for (i = l; *i != NULL; i++) {}
-    *i = p;
-}
-
 void
 array_init_prio (struct donated_prio** p)
-{
-  for (int i = 0; i < MAX_DONATIONS; i++) {
-    p[i] = NULL;
-  }
-}
-
-void
-array_init_lock (struct lock** p)
 {
   for (int i = 0; i < MAX_DONATIONS; i++) {
     p[i] = NULL;
@@ -315,7 +282,7 @@ lock_acquire (struct lock *lock)
   if (lock->holder != NULL && thread_get_priority () > lock->holder->priority) {
     p.priority = thread_get_priority ();
     donate_priority (lock, &p);
-    array_push_back_lock (thread_current ()->donation_locks, lock);
+    thread_current ()->donation_lock = lock;
     donated = true;
   }
 
@@ -324,7 +291,7 @@ lock_acquire (struct lock *lock)
   lock->holder = thread_current ();
 
   if (donated) {
-    array_remove_lock (thread_current ()->donation_locks, lock);
+    thread_current ()->donation_lock = NULL;
     array_remove_prio (lock->donated_prios, &p);
   }
 

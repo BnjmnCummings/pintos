@@ -102,7 +102,7 @@ struct thread
     int priority;                       /* Priority. */
     struct donated_prio* donated_prios[3 * MAX_DONATIONS];
     struct lock donated_lock;
-    struct lock* donation_locks[MAX_DONATIONS];
+    struct lock* donation_lock;
     int nice;                           /* Niceness. */
     int32_t recent_cpu;                 /* Thread recent CPU usage. */
     struct list_elem allelem;           /* List element for all threads list. */

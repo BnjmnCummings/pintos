@@ -554,8 +554,9 @@ donate_priority (struct lock *lock, struct donated_prio *p)
   // lock_release (&t->donated_lock);
 
   /* for through donations, call donate_priority on all */
-  for (struct lock** l = t->donation_locks; *l != NULL; l++)
-    donate_priority (*l, p);
+  if (t->donation_lock != NULL){
+    donate_priority (t->donation_lock, p);
+  }
 
   list_sort (&ready_list, prio_compare, NULL);
 }
@@ -700,7 +701,6 @@ init_thread (struct thread *t, const char *name, int priority)
 
   lock_init (&t->donated_lock);
   array_init_prio (t->donated_prios);
-  array_init_lock (t->donation_locks);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

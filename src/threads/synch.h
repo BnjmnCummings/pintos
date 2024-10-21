@@ -41,13 +41,6 @@ struct lock
     struct donated_prio* donated_prios[MAX_DONATIONS];
   };
 
-
-bool array_full_lock (struct lock**);
-void array_remove_lock (struct lock**, struct lock*);
-void array_push_back_lock (struct lock**, struct lock*);
-void array_init_lock (struct lock**);
-
-
 void lock_init (struct lock *);
 void lock_acquire (struct lock *);
 bool lock_try_acquire (struct lock *);
