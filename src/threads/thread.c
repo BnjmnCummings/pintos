@@ -217,6 +217,7 @@ static void
 thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 {
   ASSERT(thread_mlfqs);
+  ASSERT (intr_get_level () == INTR_OFF);
 
   /* Coefficient for recent CPU calculation */
   int32_t numer = FIXED_MUL_INT (load_avg, 2);
@@ -232,8 +233,9 @@ static void
 thread_update_priority (struct thread *t, void *aux UNUSED)
 {
   ASSERT(thread_mlfqs);
+  ASSERT (intr_get_level () == INTR_OFF);
 
-  if (t->status == THREAD_BLOCKED) {
+  if (t->status == THREAD_BLOCKED || t == idle_thread) {
     return;
   }
 
@@ -601,7 +603,9 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
+  enum intr_level old_level = intr_disable ();
   return FIXED_TO_INT (FIXED_MUL_INT (load_avg, 100));
+  intr_set_level(old_level);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
