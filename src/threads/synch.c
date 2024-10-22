@@ -203,18 +203,6 @@ array_insert_ordered_prio (struct donated_prio** l, struct donated_prio* p)
     l[i+1] = p;
 }
 
-bool
-array_contains_prio (struct donated_prio** l, struct donated_prio* p)
-{
-    bool contains = false;
-    for (int i = 0; i < MAX_DONATIONS && l[i] != NULL; i++) {
-      if (l[i] == p) {
-        contains = true;
-      }
-    }
-    return contains;
-}
-
 /* Removes element from array 
  * PRE: element is in the array */
 void
@@ -240,12 +228,14 @@ array_push_back_prio (struct donated_prio** l, struct donated_prio* p)
     *i = p;
 }
 
+/* Returns true if array is full */
 bool
 array_full_prio (struct donated_prio** l)
 {
   return l[MAX_DONATIONS - 1] != NULL;
 }
 
+/* Initialises array with NULL values */
 void
 array_init_prio (struct donated_prio** p)
 {
@@ -270,15 +260,17 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  bool donated = false;
+  bool donated = false; /* Records whether a donation has been made */
+  struct donated_prio p; /* Saves struct on stack */
 
-  struct donated_prio p;
+  /* If the lock is held by a lower priority thread */
   if (lock->holder != NULL && thread_get_priority () > lock->holder->priority) {
+    /* Perform donation */
     p.priority = thread_get_priority ();
     donate_priority (lock, &p);
     thread_current ()->donation_lock = lock;
     donated = true;
-
+    /* Sort ready_list as thread priorities have changed */
     enum intr_level old = intr_disable ();
     list_sort (&ready_list, prio_compare, NULL);
     intr_set_level (old);
@@ -288,6 +280,7 @@ lock_acquire (struct lock *lock)
   
   lock->holder = thread_current ();
 
+  /* Revoke donated priority from lock */
   enum intr_level old = intr_disable ();
   if (donated) {
     thread_current ()->donation_lock = NULL;
@@ -334,6 +327,7 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
 
+  /* Revoke donated priorities */
   for (int i = 0; i < MAX_DONATIONS && lock->donated_prios[i] != NULL; i++) {
       revoke_priority (lock->donated_prios[i]);
   }

@@ -7,7 +7,7 @@
 
 #define MAX_DONATIONS (8)
 
-
+/* Represents priority donation */
 struct donated_prio
   {
     int priority;
@@ -19,7 +19,6 @@ void array_push_back_prio (struct donated_prio**, struct donated_prio*);
 bool array_empty_prio (struct donated_prio**);
 bool array_full_prio (struct donated_prio**);
 void array_init_prio (struct donated_prio**);
-bool array_contains_prio (struct donated_prio**, struct donated_prio*);
 
 /* A counting semaphore. */
 struct semaphore 
@@ -39,7 +38,7 @@ struct lock
   {
     struct thread *holder;      /* Thread holding lock (for debugging). */
     struct semaphore semaphore; /* Binary semaphore controlling access. */
-    struct donated_prio* donated_prios[MAX_DONATIONS];
+    struct donated_prio* donated_prios[MAX_DONATIONS]; /* Queue of donated priorities to lock */
   };
 
 void lock_init (struct lock *);

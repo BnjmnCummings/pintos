@@ -509,7 +509,7 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
-/* Sets the current thread's priority to NEW_PRIORITY. */
+/* Sets the current thread's priority to 'new_priority'. */
 void
 thread_set_priority (int new_priority) 
 {
@@ -519,6 +519,7 @@ thread_set_priority (int new_priority)
 
   struct list_elem* max_elem = NULL;
 
+  /* Extract highest priority element form the ready list */
   enum intr_level old = intr_disable ();
   if (!list_empty (&ready_list)) {
       max_elem = list_front (&ready_list);
@@ -537,10 +538,12 @@ thread_get_priority (void)
   return get_threads_priority (thread_current ());
 }
 
+/* Returns the target thread's effective priority */
 int
 get_threads_priority (struct thread *t)
 {
   int prio;
+  /* Compares maximum donated priority to base priority */
   enum intr_level old_level = intr_disable ();
   if (t->donated_prios[0] != NULL && t->donated_prios[0]->priority > t->priority) {
     prio = t->donated_prios[0]->priority;
@@ -551,6 +554,7 @@ get_threads_priority (struct thread *t)
   return prio;
 }
 
+/* Donates given priority to the lock holder and every other lock in the chain */
 void
 donate_priority (struct lock *lock, struct donated_prio *p)
 {
@@ -565,12 +569,13 @@ donate_priority (struct lock *lock, struct donated_prio *p)
   array_insert_ordered_prio (lock->donated_prios, p);
   lock_release (&t->donated_lock);
 
-  /* for through donations, call donate_priority on all */
+  /* Donate to existing donee */
   if (t->donation_lock != NULL){
     donate_priority (t->donation_lock, p);
   }
 }
 
+/* Revoke provided priority from current thread */
 void
 revoke_priority (struct donated_prio *p)
 {
