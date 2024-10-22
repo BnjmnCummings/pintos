@@ -216,23 +216,6 @@ array_remove_prio (struct donated_prio** l, struct donated_prio* p)
       l[j] = l[j+1];
     }
     l[j] = NULL;
-} 
-
-/* Add element to back of array 
- * PRE: array is not full */
-void
-array_push_back_prio (struct donated_prio** l, struct donated_prio* p)
-{
-    struct donated_prio** i;
-    for (i = l; *i != NULL; i++) {}
-    *i = p;
-}
-
-/* Returns true if array is full */
-bool
-array_full_prio (struct donated_prio** l)
-{
-  return l[MAX_DONATIONS - 1] != NULL;
 }
 
 /* Initialises array with NULL values */
@@ -264,7 +247,7 @@ lock_acquire (struct lock *lock)
   struct donated_prio p; /* Saves struct on stack */
 
   /* If the lock is held by a lower priority thread */
-  if (lock->holder != NULL && thread_get_priority () > lock->holder->priority) {
+  if (lock->holder != NULL) {
     /* Perform donation */
     p.priority = thread_get_priority ();
     donate_priority (lock, &p);

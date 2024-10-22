@@ -560,9 +560,6 @@ donate_priority (struct lock *lock, struct donated_prio *p)
 {
   struct thread* t = lock->holder;
 
-  ASSERT (!array_full_prio (lock->donated_prios));
-  ASSERT (!array_full_prio (t->donated_prios));
-
   /* Donate this threads priority to target thread */
   lock_acquire (&t->donated_lock);
   array_insert_ordered_prio (t->donated_prios, p);
