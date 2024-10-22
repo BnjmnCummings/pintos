@@ -515,12 +515,11 @@ thread_set_priority (int new_priority)
 {
   ASSERT (!thread_mlfqs);
 
-  thread_current ()->priority = new_priority;
-
   struct list_elem* max_elem = NULL;
 
   /* Extract highest priority element form the ready list */
   enum intr_level old = intr_disable ();
+  thread_current ()->priority = new_priority;
   if (!list_empty (&ready_list)) {
       max_elem = list_front (&ready_list);
   }
