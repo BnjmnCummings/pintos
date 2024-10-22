@@ -157,7 +157,7 @@ threads_ready (void)
   /* if we're using the advanced scheduler, then sum the number of threads in each index*/
   if (thread_mlfqs) {
     ready_thread_count = 0;
-    for(int i = 0; i < QUEUE_ARRAY_SIZE; i++) {
+    for (int i = 0; i < QUEUE_ARRAY_SIZE; i++) {
       ready_thread_count += list_size (&queue_array[i]);
     }
   } else {
@@ -217,14 +217,17 @@ thread_tick (void)
 static void
 thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 {
-  ASSERT(thread_mlfqs);
+  ASSERT (thread_mlfqs);
+  ASSERT (intr_get_level () == INTR_OFF);
 
-  /* Coefficient for recent CPU calculation */
-  int32_t numer = FIXED_MUL_INT (load_avg, 2);
-  int32_t denom = FIXED_ADD_INT (numer, 1);
-  int32_t coeff = FIXED_DIV (numer, denom);
+  if (t != idle_thread) {
+    /* Coefficient for recent CPU calculation */
+    int32_t numer = FIXED_MUL_INT (load_avg, 2);
+    int32_t denom = FIXED_ADD_INT (numer, 1);
+    int32_t coeff = FIXED_DIV (numer, denom);
 
-  t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, t->recent_cpu), t->nice);
+    t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, t->recent_cpu), t->nice);
+  }
 }
 
 /* function that updates the current threads prioirty 
@@ -232,9 +235,10 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 static void
 thread_update_priority (struct thread *t, void *aux UNUSED)
 {
-  ASSERT(thread_mlfqs);
+  ASSERT (thread_mlfqs);
+  ASSERT (intr_get_level () == INTR_OFF);
 
-  if (t->status == THREAD_BLOCKED) {
+  if (t->status == THREAD_BLOCKED || t == idle_thread) {
     return;
   }
 
@@ -343,7 +347,7 @@ thread_create (const char *name, int priority,
 void
 check_prio (int prio)
 {
-  if (thread_current() != idle_thread && thread_get_priority () < prio) {
+  if (thread_current () != idle_thread && thread_get_priority () < prio) {
     if (intr_context ()) {
       intr_yield_on_return ();
     } else {
@@ -612,7 +616,10 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-  return FIXED_TO_INT (FIXED_MUL_INT (load_avg, 100));
+  enum intr_level old_level = intr_disable (); 
+  int load = FIXED_TO_INT (FIXED_MUL_INT (load_avg, 100));
+  intr_set_level (old_level);
+  return load;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
