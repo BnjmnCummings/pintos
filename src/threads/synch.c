@@ -42,11 +42,6 @@
    - up or "V": increment the value (and wake up one waiting
      thread, if any). */
 
-static bool
-waiter_prio_compare (const struct list_elem *a,
-                    const struct list_elem *b,
-                    void *aux UNUSED);
-
 void
 sema_init (struct semaphore *sema, unsigned value) 
 {
@@ -194,16 +189,6 @@ lock_init (struct lock *lock)
   sema_init (&lock->semaphore, 1);
 }
 
-/* Acquires LOCK, sleeping until it becomes available if
-   necessary.  The lock must not already be held by the current
-   thread.
-
-   This function may sleep, so it must not be called within an
-   interrupt handler.  This function may be called with
-   interrupts disabled, but interrupts will be turned back on if
-   we need to sleep. */
-
-
 /* Array operation functions */
 
 /* Inserts a prio inside a list, ordered by priority highest to lowest
@@ -269,6 +254,15 @@ array_init_prio (struct donated_prio** p)
   }
 }
 
+/* Acquires LOCK, sleeping until it becomes available if
+   necessary.  The lock must not already be held by the current
+   thread.
+
+   This function may sleep, so it must not be called within an
+   interrupt handler.  This function may be called with
+   interrupts disabled, but interrupts will be turned back on if
+   we need to sleep. */
+   
 void
 lock_acquire (struct lock *lock)
 {
@@ -284,12 +278,17 @@ lock_acquire (struct lock *lock)
     donate_priority (lock, &p);
     thread_current ()->donation_lock = lock;
     donated = true;
+
+    enum intr_level old = intr_disable ();
+    list_sort (&ready_list, prio_compare, NULL);
+    intr_set_level (old);
   }
 
   sema_down (&lock->semaphore);
   
   lock->holder = thread_current ();
 
+  enum intr_level old = intr_disable ();
   if (donated) {
     thread_current ()->donation_lock = NULL;
     array_remove_prio (lock->donated_prios, &p);
@@ -299,6 +298,7 @@ lock_acquire (struct lock *lock)
   for (int i = 0; i < MAX_DONATIONS && lock->donated_prios[i] != NULL; i++) {
     array_insert_ordered_prio (thread_current ()->donated_prios, lock->donated_prios[i]);
   }
+  intr_set_level(old);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false

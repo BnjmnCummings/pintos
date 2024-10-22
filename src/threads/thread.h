@@ -100,7 +100,7 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    struct donated_prio* donated_prios[3 * MAX_DONATIONS];
+    struct donated_prio* donated_prios[2*MAX_DONATIONS];
     struct lock donated_lock;
     struct lock* donation_lock;
     int nice;                           /* Niceness. */
@@ -118,6 +118,8 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+extern struct list ready_list;
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

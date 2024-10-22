@@ -25,7 +25,7 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list ready_list;
+struct list ready_list;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -111,8 +111,9 @@ thread_init (void)
   /* initialise mlfqs array */
   if (thread_mlfqs)
     mlfq_init ();
-  else
+  else {
     list_init (&ready_list);
+  }
 
   /* initiate system-wide load average as zero */
   load_avg = INITIAL_LOAD_AVG;
@@ -515,9 +516,17 @@ thread_set_priority (int new_priority)
   ASSERT (!thread_mlfqs);
 
   thread_current ()->priority = new_priority;
+
+  struct list_elem* max_elem = NULL;
+
+  enum intr_level old = intr_disable ();
   if (!list_empty (&ready_list)) {
-      check_prio (list_entry (list_front (&ready_list),
-      struct thread, elem)->priority);
+      max_elem = list_front (&ready_list);
+  }
+  intr_set_level (old);
+  if (max_elem != NULL) {
+      check_prio (list_entry (max_elem,
+                  struct thread, elem)->priority);
   }
 }
 
@@ -531,12 +540,15 @@ thread_get_priority (void)
 int
 get_threads_priority (struct thread *t)
 {
-  if (t->donated_prios[0] != NULL) {
-    if (t->donated_prios[0]->priority > t->priority) {
-      return t->donated_prios[0]->priority;
-    }
+  int prio;
+  enum intr_level old_level = intr_disable ();
+  if (t->donated_prios[0] != NULL && t->donated_prios[0]->priority > t->priority) {
+    prio = t->donated_prios[0]->priority;
+  } else {
+    prio = t->priority;
   }
-  return t->priority;
+  intr_set_level (old_level);
+  return prio;
 }
 
 void
@@ -548,25 +560,23 @@ donate_priority (struct lock *lock, struct donated_prio *p)
   ASSERT (!array_full_prio (t->donated_prios));
 
   /* Donate this threads priority to target thread */
-  // lock_acquire (&t->donated_lock);
+  lock_acquire (&t->donated_lock);
   array_insert_ordered_prio (t->donated_prios, p);
   array_insert_ordered_prio (lock->donated_prios, p);
-  // lock_release (&t->donated_lock);
+  lock_release (&t->donated_lock);
 
   /* for through donations, call donate_priority on all */
   if (t->donation_lock != NULL){
     donate_priority (t->donation_lock, p);
   }
-
-  list_sort (&ready_list, prio_compare, NULL);
 }
 
 void
 revoke_priority (struct donated_prio *p)
 {
-  // lock_acquire(&t->donated_lock);
+  lock_acquire(&thread_current ()->donated_lock);
   array_remove_prio (thread_current ()->donated_prios, p);
-  // lock_release (&t->donated_lock);
+  lock_release (&thread_current ()->donated_lock);
 }
 
 /* Sets the current thread's nice value to NICE. */

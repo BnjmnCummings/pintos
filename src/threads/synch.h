@@ -3,14 +3,15 @@
 
 #include <list.h>
 #include <stdbool.h>
+#include <debug.h>
 
 #define MAX_DONATIONS (8)
 
 
 struct donated_prio
-{
+  {
     int priority;
-};
+  };
 
 void array_insert_ordered_prio (struct donated_prio**, struct donated_prio*);
 void array_remove_prio (struct donated_prio**, struct donated_prio*);
