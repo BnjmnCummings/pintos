@@ -220,14 +220,12 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
   ASSERT (thread_mlfqs);
   ASSERT (intr_get_level () == INTR_OFF);
 
-  if (t != idle_thread) {
-    /* Coefficient for recent CPU calculation */
-    int32_t numer = FIXED_MUL_INT (load_avg, 2);
-    int32_t denom = FIXED_ADD_INT (numer, 1);
-    int32_t coeff = FIXED_DIV (numer, denom);
+  /* Coefficient for recent CPU calculation */
+  int32_t numer = FIXED_MUL_INT (load_avg, 2);
+  int32_t denom = FIXED_ADD_INT (numer, 1);
+  int32_t coeff = FIXED_DIV (numer, denom);
 
-    t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, t->recent_cpu), t->nice);
-  }
+  t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, t->recent_cpu), t->nice);
 }
 
 /* function that updates the current threads prioirty 

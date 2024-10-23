@@ -100,7 +100,7 @@ timer_sleep (int64_t ticks)
   ASSERT (intr_get_level () == INTR_ON);
   /* checks the thread hasn't already gone past its timer,
   also fail-safe incase the thread wakes up early */
-  while (timer_elapsed (start) < ticks) {
+  if (timer_elapsed (start) < ticks) {
     /* initialise t_waiter struct and its members */
     struct t_waiter waiter;
     sema_init(&waiter.sema, 0);

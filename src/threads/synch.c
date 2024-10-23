@@ -247,7 +247,7 @@ lock_acquire (struct lock *lock)
   struct donated_prio p; /* Saves struct on stack */
 
   /* If the lock is held by a lower priority thread */
-  if (lock->holder != NULL) {
+  if (lock->holder != NULL && !thread_mlfqs) {
     /* Perform donation */
     p.priority = thread_get_priority ();
     donate_priority (lock, &p);
