@@ -240,8 +240,8 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
     return;
   }
 
-  int32_t recent_cpu_quarter = FIXED_DIV_INT (thread_current ()->recent_cpu, 4);
-  int32_t priority_difference = FIXED_ADD_INT (recent_cpu_quarter, (thread_current ()->nice * 2));
+  int32_t recent_cpu_quarter = FIXED_DIV_INT (t->recent_cpu, 4);
+  int32_t priority_difference = FIXED_ADD_INT (recent_cpu_quarter, (t->nice * 2));
   int32_t new_priority = FIXED_TO_INT_TRUNC (INT_SUB_FIXED (PRI_MAX, priority_difference));
 
   /* caps priority between PRI_MIN and PRI_MAX */
@@ -256,7 +256,7 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
     /* we check if updating should cause thread to yield elsewhere */
     t->priority = new_priority;
 
-    if (thread_current ()->status == THREAD_READY) {
+    if (t->status == THREAD_READY) {
       list_remove (&t->elem);
       mlfq_insert (t);
     }
@@ -328,11 +328,11 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  intr_set_level (old_level);
-
   /* inherit niceness and recent_cpu from current thread */
   t->nice = thread_current ()->nice;
   t->recent_cpu = thread_current ()->recent_cpu;
+  
+  intr_set_level (old_level);
 
   /* Add to run queue. */
   thread_unblock (t);
