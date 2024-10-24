@@ -228,7 +228,7 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
   t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, t->recent_cpu), t->nice);
 }
 
-/* function that updates the current threads prioirty 
+/* function that updates the given thread's prioirty 
  based it's recent_cpu and niceness */
 static void
 thread_update_priority (struct thread *t, void *aux UNUSED)
@@ -253,9 +253,9 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
 
   /* preserve space in the queue if priority is unchanged*/
   if (t->priority != new_priority) {
-    /* we check if updating should cause thread to yield elsewhere */
     t->priority = new_priority;
 
+    /* we check if updating should cause thread to yield elsewhere */
     if (t->status == THREAD_READY) {
       list_remove (&t->elem);
       mlfq_insert (t);
@@ -331,7 +331,7 @@ thread_create (const char *name, int priority,
   /* inherit niceness and recent_cpu from current thread */
   t->nice = thread_current ()->nice;
   t->recent_cpu = thread_current ()->recent_cpu;
-  
+
   intr_set_level (old_level);
 
   /* Add to run queue. */
