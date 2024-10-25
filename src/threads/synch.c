@@ -254,8 +254,6 @@ lock_acquire (struct lock *lock)
     donate_priority (lock, &p);
     thread_current ()->donated_lock = lock;
     donated = true;
-    /* Sort ready_list as thread priorities have changed */
-    list_sort (&ready_list, prio_compare, NULL);
   }
 
   sema_down (&lock->semaphore);

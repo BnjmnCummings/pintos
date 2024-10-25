@@ -25,7 +25,7 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-struct list ready_list;
+static struct list ready_list;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -394,7 +394,7 @@ thread_unblock (struct thread *t)
     mlfq_insert (t);
     thread_update_priority (t, NULL);
   } else {
-    list_insert_ordered (&ready_list, &t->elem, prio_compare, NULL);
+    list_push_back (&ready_list, &t->elem);
   }
 
   intr_set_level (old_level);
@@ -407,7 +407,7 @@ prio_compare (const struct list_elem *a,
              void *aux UNUSED) {
   struct thread *a1 = list_entry (a, struct thread, elem);
   struct thread *b1 = list_entry (b, struct thread, elem);
-  return a1->effective_priority > b1->effective_priority;
+  return a1->effective_priority >= b1->effective_priority;
 }
 
 /* Helper function to find max priority in a list */
@@ -488,7 +488,7 @@ thread_yield (void)
     if (thread_mlfqs)
       mlfq_insert (cur);
     else
-      list_insert_ordered (&ready_list, &cur->elem, prio_compare, NULL);
+      list_push_back (&ready_list, &cur->elem);
   }
 
   cur->status = THREAD_READY;
@@ -525,7 +525,7 @@ thread_set_priority (int new_priority)
   recalculate_priority (thread_current ());
 
   if (!list_empty (&ready_list)) {
-      check_prio (list_entry (list_front (&ready_list),
+      check_prio (list_entry (list_max (&ready_list, compare_max_prio, NULL),
                         struct thread, elem)->priority);
   }
   intr_set_level (old_level);
@@ -756,8 +756,11 @@ next_thread_to_run (void)
   } else {
     if (list_empty (&ready_list))
       return idle_thread;
-    else
-      return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    else {
+      struct list_elem *next = list_max (&ready_list, compare_max_prio, NULL);
+      list_remove(next);
+      return list_entry (next, struct thread, elem);
+    }
   }
 
 }
