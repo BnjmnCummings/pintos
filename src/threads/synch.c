@@ -191,7 +191,7 @@ lock_init (struct lock *lock)
 
 /* Array operation functions */
 
-/* Inserts a prio inside a list, ordered by priority highest to lowest
+/* Inserts a priority inside a list, ordered by highest to lowest priority
  * PRE: array is not full */
 void
 array_insert_ordered_prio (struct donated_prio** l, struct donated_prio* p)
@@ -243,7 +243,7 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  bool donated = false; /* Records whether a donation has been made */
+  bool donated = false;  /* Records whether a donation has been made */
   struct donated_prio p; /* Saves struct on stack */
 
   /* If the lock is held by a lower priority thread */
@@ -338,7 +338,7 @@ struct semaphore_elem
     struct semaphore semaphore;         /* This semaphore. */
   };
 
-/* helper function to order waiters inside condition of a monitor by priority */
+/* Helper function to order waiters inside condition of a monitor by priority */
 static bool
 waiter_prio_compare (const struct list_elem *a,
                     const struct list_elem *b,

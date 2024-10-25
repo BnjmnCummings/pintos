@@ -108,14 +108,14 @@ thread_init (void)
 
   list_init (&all_list);
 
-  /* initialise mlfqs array */
+  /* Initialise mlfqs array */
   if (thread_mlfqs)
     mlfq_init ();
   else {
     list_init (&ready_list);
   }
 
-  /* initiate system-wide load average as zero */
+  /* Initialise system-wide load average as zero */
   load_avg = INITIAL_LOAD_AVG;
 
   /* Set up a thread structure for the running thread. */
@@ -124,7 +124,7 @@ thread_init (void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
 
-  /* initialise start thread nicenes an recent cpu */
+  /* Initialise start thread niceness and recent_cpu */
   initial_thread->nice = NICE_DEFAULT;
   initial_thread->recent_cpu = RECENT_CPU_DEFAULT;
 
@@ -154,7 +154,7 @@ threads_ready (void)
 {
   enum intr_level old_level = intr_disable ();
   size_t ready_thread_count;
-  /* if we're using the advanced scheduler, then sum the number of threads in each index*/
+  /* Sum the number of threads in each index if mlfqs is active */
   if (thread_mlfqs) {
     ready_thread_count = 0;
     for (int i = 0; i < QUEUE_ARRAY_SIZE; i++) {
@@ -191,7 +191,7 @@ thread_tick (void)
 
     /* Updates statistics every second */
     if (timer_ticks () % TIMER_FREQ == 0) {
-      /* Calculating new load average */
+      /* Calculate new load average */
       int32_t old = load_avg;
       int32_t prev = FIXED_DIV_INT (FIXED_MUL_INT (old, 59), 60);
       int32_t new = FIXED_DIV_INT (INT_TO_FIXED (threads_ready () + (t != idle_thread)), 60);
@@ -200,7 +200,7 @@ thread_tick (void)
       /* Update recent CPU usage value for every thread */
       thread_foreach (thread_update_recent_cpu, NULL);
     } else if (timer_ticks () % PRI_UPDATE_FREQUENCY == 0) {
-      /* Updates thread priority every 4 ticks*/
+      /* Updates thread priority every 4 ticks */
       thread_update_priority(thread_current(), NULL);
     }
     check_prio (mlfq_highest_priority ());
@@ -225,12 +225,12 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 
   t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, t->recent_cpu), t->nice);
 
-  /* update priority as 100 ticks is multiple of 4 */
+  /* Also update priority every 100 ticks */
   thread_update_priority(t, NULL);
 }
 
-/* function that updates the given thread's prioirty 
- based it's recent_cpu and niceness */
+/* Function that updates the given thread's priority
+   based its recent_cpu and niceness */
 static void
 thread_update_priority (struct thread *t, void *aux UNUSED)
 {
@@ -245,18 +245,18 @@ thread_update_priority (struct thread *t, void *aux UNUSED)
   int32_t priority_difference = FIXED_ADD_INT (recent_cpu_quarter, (t->nice * 2));
   int32_t new_priority = FIXED_TO_INT_TRUNC (INT_SUB_FIXED (PRI_MAX, priority_difference));
 
-  /* caps priority between PRI_MIN and PRI_MAX */
+  /* Caps priority between PRI_MIN and PRI_MAX */
   if (new_priority < PRI_MIN) {
     new_priority = PRI_MIN;
   } else if (new_priority > PRI_MAX) {
     new_priority = PRI_MAX;
   }
 
-  /* preserve space in the queue if priority is unchanged*/
+  /* Reserve space in the queue if priority is unchanged */
   if (t->priority != new_priority) {
     t->priority = new_priority;
 
-    /* we check if updating should cause thread to yield elsewhere */
+    /* We check if updating should cause thread to yield elsewhere */
     if (t->status == THREAD_READY) {
       list_remove (&t->elem);
       mlfq_insert (t);
@@ -342,7 +342,7 @@ thread_create (const char *name, int priority,
   return tid;
 }
 
-/* if new priority is higher than current thread, yield CPU */
+/* If new priority is higher than current thread, yield CPU */
 void
 check_prio (int prio)
 {
@@ -399,7 +399,7 @@ thread_unblock (struct thread *t)
   intr_set_level (old_level);
 }
 
-/* helper function to order ready_list by priority */
+/* Helper function to order ready_list by priority */
 bool
 prio_compare (const struct list_elem *a,
              const struct list_elem *b,
@@ -409,7 +409,7 @@ prio_compare (const struct list_elem *a,
   return get_threads_priority (a1) > get_threads_priority (b1);
 }
 
-/* helper function to find max priority in a list */
+/* Helper function to find max priority in a list */
 bool
 compare_max_prio (const struct list_elem *a,
              const struct list_elem *b,
@@ -826,7 +826,7 @@ allocate_tid (void)
   return tid;
 }
 
-/* initialises the mlfq by creating an empty list behind each index. */
+/* Initialises the mlfq by creating an empty list behind each index. */
 static void
 mlfq_init (void)
 {
@@ -836,8 +836,8 @@ mlfq_init (void)
     list_init (&queue_array[i]);
 }
 
-/* returns the highest priority non-empty queue in the mlfq.
- returns 0 if the mlfq is empty */
+/* Returns the highest priority non-empty queue in the mlfq.
+   Returns 0 if the mlfq is empty. */
 static int
 mlfq_highest_priority (void)
 {
@@ -849,7 +849,7 @@ mlfq_highest_priority (void)
   return index;
 }
 
-/* returns true if each queue in the mlfq is empty. */
+/* Returns true if each queue in the mlfq is empty. */
 static bool
 mlfq_is_empty (void)
 {

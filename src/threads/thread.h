@@ -25,15 +25,15 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
-/* niceness, revent_cpu and load_avg all start at 0 */
+/* Niceness, recent_cpu and load_avg all start at 0 */
 #define NICE_DEFAULT 0
 #define RECENT_CPU_DEFAULT 0
 #define INITIAL_LOAD_AVG 0
 
-/* priority is updated for every thread once every 4 ticks */
+/* Priority is updated for every thread once every 4 ticks */
 #define PRI_UPDATE_FREQUENCY 4
 
-/* size of the array containing each ready queue*/
+/* Size of the array containing each ready queue */
 #define QUEUE_ARRAY_SIZE 64
 
 /* A kernel thread or user process.
@@ -118,6 +118,7 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
+/* Global list of ready threads */
 extern struct list ready_list;
 
 /* If false (default), use round-robin scheduler.
