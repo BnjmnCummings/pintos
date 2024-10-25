@@ -247,6 +247,7 @@ lock_acquire (struct lock *lock)
   struct donated_prio p; /* Saves struct on stack */
 
   /* If the lock is held by a lower priority thread */
+  enum intr_level old_level = intr_disable ();
   if (lock->holder != NULL && !thread_mlfqs) {
     /* Perform donation */
     p.priority = thread_get_priority ();
@@ -254,17 +255,15 @@ lock_acquire (struct lock *lock)
     thread_current ()->donated_lock = lock;
     donated = true;
     /* Sort ready_list as thread priorities have changed */
-    enum intr_level old = intr_disable ();
     list_sort (&ready_list, prio_compare, NULL);
-    intr_set_level (old);
   }
+  intr_set_level (old_level);
 
   sema_down (&lock->semaphore);
   
-  lock->holder = thread_current ();
-
   /* Revoke donated priority from lock */
-  enum intr_level old = intr_disable ();
+  old_level = intr_disable ();
+  lock->holder = thread_current ();
   if (donated) {
     thread_current ()->donated_lock = NULL;
     array_remove_prio (lock->donated_prios, &p);
@@ -274,7 +273,7 @@ lock_acquire (struct lock *lock)
   for (int i = 0; i < MAX_DONATIONS && lock->donated_prios[i] != NULL; i++) {
     array_insert_ordered_prio (thread_current ()->donated_prios, lock->donated_prios[i]);
   }
-  intr_set_level(old);
+  intr_set_level(old_level);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -311,9 +310,11 @@ lock_release (struct lock *lock)
   lock->holder = NULL;
 
   /* Revoke donated priorities */
+  enum intr_level old_level = intr_disable ();
   for (int i = 0; i < MAX_DONATIONS && lock->donated_prios[i] != NULL; i++) {
-      revoke_priority (lock->donated_prios[i]);
+      array_remove_prio (thread_current ()->donated_prios, lock->donated_prios[i]);
   }
+  intr_set_level(old_level);
 
   sema_up (&lock->semaphore);
 }

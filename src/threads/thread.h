@@ -101,7 +101,6 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct donated_prio* donated_prios[2*MAX_DONATIONS]; /* Queue of donated priorities */
-    struct lock synchro_lock;           /* Used for synchronising donation calls */
     struct lock* donated_lock;         /* Records the lock held by the donee */
     int nice;                           /* Niceness. */
     int32_t recent_cpu;                 /* Thread recent CPU usage. */
@@ -163,7 +162,6 @@ void thread_set_priority (int);
 int get_threads_priority (struct thread *t);
 
 void donate_priority (struct lock *t, struct donated_prio *p);
-void revoke_priority (struct donated_prio *p);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

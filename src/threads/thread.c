@@ -517,19 +517,14 @@ thread_set_priority (int new_priority)
 {
   ASSERT (!thread_mlfqs);
 
-  struct list_elem* max_elem = NULL;
-
   /* Extract highest priority element form the ready list */
-  enum intr_level old = intr_disable ();
+  enum intr_level old_level = intr_disable ();
   thread_current ()->priority = new_priority;
   if (!list_empty (&ready_list)) {
-      max_elem = list_front (&ready_list);
+      check_prio (list_entry (list_front (&ready_list),
+                        struct thread, elem)->priority);
   }
-  intr_set_level (old);
-  if (max_elem != NULL) {
-      check_prio (list_entry (max_elem,
-                  struct thread, elem)->priority);
-  }
+  intr_set_level (old_level);
 }
 
 /* Returns the current thread's priority. */
@@ -562,24 +557,13 @@ donate_priority (struct lock *lock, struct donated_prio *p)
   struct thread* t = lock->holder;
 
   /* Donate this threads priority to target thread */
-  lock_acquire (&t->synchro_lock);
   array_insert_ordered_prio (t->donated_prios, p);
   array_insert_ordered_prio (lock->donated_prios, p);
-  lock_release (&t->synchro_lock);
 
   /* Donate to existing donee */
   if (t->donated_lock != NULL){
     donate_priority (t->donated_lock, p);
   }
-}
-
-/* Revoke provided priority from current thread */
-void
-revoke_priority (struct donated_prio *p)
-{
-  lock_acquire (&thread_current ()->synchro_lock);
-  array_remove_prio (thread_current ()->donated_prios, p);
-  lock_release (&thread_current ()->synchro_lock);
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -715,7 +699,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-  lock_init (&t->synchro_lock);
   array_init_prio (t->donated_prios);
 
   old_level = intr_disable ();
