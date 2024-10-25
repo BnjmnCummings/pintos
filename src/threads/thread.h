@@ -99,6 +99,7 @@ struct thread
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
+    int effective_priority;             /* Max of base priority and donations */
     int priority;                       /* Priority. */
     struct donated_prio* donated_prios[2*MAX_DONATIONS]; /* Queue of donated priorities */
     struct lock* donated_lock;         /* Records the lock held by the donee */
@@ -160,9 +161,9 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
-int get_threads_priority (struct thread *t);
 
-void donate_priority (struct lock *t, struct donated_prio *p);
+void donate_priority (struct lock *lock, struct donated_prio *p);
+void revoke_priority (struct lock *lock);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

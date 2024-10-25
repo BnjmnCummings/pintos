@@ -119,7 +119,7 @@ sema_up (struct semaphore *sema)
     struct list_elem* max_elem = list_max (&sema->waiters, compare_max_prio, NULL);
     struct thread *t = list_entry (max_elem, struct thread, elem);
     list_remove (max_elem);
-    prio = get_threads_priority (t);
+    prio = t->effective_priority;
     thread_unblock (t);
   }
   sema->value++;
@@ -257,12 +257,10 @@ lock_acquire (struct lock *lock)
     /* Sort ready_list as thread priorities have changed */
     list_sort (&ready_list, prio_compare, NULL);
   }
-  intr_set_level (old_level);
 
   sema_down (&lock->semaphore);
 
   /* Revoke donated priority from lock */
-  old_level = intr_disable ();
   lock->holder = thread_current ();
   if (donated) {
     thread_current ()->donated_lock = NULL;
@@ -311,12 +309,10 @@ lock_release (struct lock *lock)
 
   /* Revoke donated priorities */
   enum intr_level old_level = intr_disable ();
-  for (int i = 0; i < MAX_DONATIONS && lock->donated_prios[i] != NULL; i++) {
-      array_remove_prio (thread_current ()->donated_prios, lock->donated_prios[i]);
-  }
-  intr_set_level(old_level);
+  revoke_priority (lock);
 
   sema_up (&lock->semaphore);
+  intr_set_level(old_level);
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -345,7 +341,7 @@ waiter_prio_compare (const struct list_elem *a,
                     void *aux UNUSED) {
     struct thread *a1 = list_entry (a, struct semaphore_elem, elem)->thread;
     struct thread *b1 = list_entry (b, struct semaphore_elem, elem)->thread;
-    return get_threads_priority(a1) < get_threads_priority(b1);
+    return a1->effective_priority < b1->effective_priority;
 }
 
 /* Initializes condition variable COND.  A condition variable
