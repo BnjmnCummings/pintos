@@ -199,13 +199,11 @@ thread_tick (void)
 
       /* Update recent CPU usage value for every thread */
       thread_foreach (thread_update_recent_cpu, NULL);
+    } else if (timer_ticks () % PRI_UPDATE_FREQUENCY == 0) {
+      /* Updates thread priority every 4 ticks*/
+      thread_update_priority(thread_current(), NULL);
     }
-
-    /* Updates thread priority every 4 ticks*/
-    if (timer_ticks () % PRI_UPDATE_FREQUENCY == 0) {
-      thread_foreach (thread_update_priority, NULL);
-      check_prio (mlfq_highest_priority ());
-    }
+    check_prio (mlfq_highest_priority ());
   }
 
   /* Enforce preemption. */
@@ -226,6 +224,9 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
   int32_t coeff = FIXED_DIV (numer, denom);
 
   t->recent_cpu = FIXED_ADD_INT (FIXED_MUL (coeff, t->recent_cpu), t->nice);
+
+  /* update priority as 100 ticks is multiple of 4 */
+  thread_update_priority(t, NULL);
 }
 
 /* function that updates the given thread's prioirty 
