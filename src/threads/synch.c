@@ -251,7 +251,7 @@ lock_acquire (struct lock *lock)
     /* Perform donation */
     p.priority = thread_get_priority ();
     donate_priority (lock, &p);
-    thread_current ()->donation_lock = lock;
+    thread_current ()->donated_lock = lock;
     donated = true;
     /* Sort ready_list as thread priorities have changed */
     enum intr_level old = intr_disable ();
@@ -266,7 +266,7 @@ lock_acquire (struct lock *lock)
   /* Revoke donated priority from lock */
   enum intr_level old = intr_disable ();
   if (donated) {
-    thread_current ()->donation_lock = NULL;
+    thread_current ()->donated_lock = NULL;
     array_remove_prio (lock->donated_prios, &p);
   }
 

@@ -562,14 +562,14 @@ donate_priority (struct lock *lock, struct donated_prio *p)
   struct thread* t = lock->holder;
 
   /* Donate this threads priority to target thread */
-  lock_acquire (&t->donated_lock);
+  lock_acquire (&t->synchro_lock);
   array_insert_ordered_prio (t->donated_prios, p);
   array_insert_ordered_prio (lock->donated_prios, p);
-  lock_release (&t->donated_lock);
+  lock_release (&t->synchro_lock);
 
   /* Donate to existing donee */
-  if (t->donation_lock != NULL){
-    donate_priority (t->donation_lock, p);
+  if (t->donated_lock != NULL){
+    donate_priority (t->donated_lock, p);
   }
 }
 
@@ -577,9 +577,9 @@ donate_priority (struct lock *lock, struct donated_prio *p)
 void
 revoke_priority (struct donated_prio *p)
 {
-  lock_acquire(&thread_current ()->donated_lock);
+  lock_acquire (&thread_current ()->synchro_lock);
   array_remove_prio (thread_current ()->donated_prios, p);
-  lock_release (&thread_current ()->donated_lock);
+  lock_release (&thread_current ()->synchro_lock);
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -715,7 +715,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-  lock_init (&t->donated_lock);
+  lock_init (&t->synchro_lock);
   array_init_prio (t->donated_prios);
 
   old_level = intr_disable ();
