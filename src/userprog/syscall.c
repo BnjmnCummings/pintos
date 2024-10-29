@@ -15,6 +15,12 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+  //TODO retrieve the system call number from the User Stack
+  //Pre-Requisite we need to be able to read/write data from the User Virtual Adress Space.
+
+  //validate the alleged pointer to System Call Number.
+  // any invalid pointers/ edge cases should terminate the user process
+
   printf ("system call!\n");
   thread_exit ();
 }
