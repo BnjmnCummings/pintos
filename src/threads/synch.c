@@ -303,10 +303,9 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  lock->holder = NULL;
-
   /* Revoke donated priorities */
   enum intr_level old_level = intr_disable ();
+  lock->holder = NULL;
   revoke_priority (lock);
 
   sema_up (&lock->semaphore);
