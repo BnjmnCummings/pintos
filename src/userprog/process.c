@@ -484,6 +484,9 @@ setup_stack (void **esp, struct stack_entries* args)
           arg_pointers[i] = esp;
         }
 
+        /* Round down to the nearest 4 bytes */
+        esp = (void *)((uintptr_t)esp & ~0x3);
+
         /* Push pointers to arguments onto the stack */
         for (int i = args->argc; i >= 0; i--) {
           esp = (void *) ((uint8_t *) esp - (sizeof(char*)));
