@@ -5,6 +5,8 @@
 
 #define SPACE_DELIM " "
 
+/* Uses type conversion to decrement provided void* pointer by a given number of bytes */
+#define DEC_ESP_BY_BYTES(esp, num) ((esp) = (void *) ((uint8_t *) (esp) - (num)))
 
 /* Stores the arguments needed to initalise a user process stack */
 struct stack_entries 

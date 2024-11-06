@@ -479,7 +479,7 @@ setup_stack (void **esp, struct stack_entries* args)
         void* arg_pointers[args->argc+1];
         arg_pointers[args->argc] = NULL;  /* argv[argc] should be NULL according to the implementation */
         for (int i = args->argc - 1; i >= 0; i--) {
-          esp = (void *) ((uint8_t *) esp - (strlen(args->argv[i])+1));
+          DEC_ESP_BY_BYTES(esp, strlen(args->argv[i])+1);
           strlcpy((char*) esp, args->argv[i], strlen(args->argv[i])+1);
           arg_pointers[i] = esp;
         }
@@ -489,16 +489,16 @@ setup_stack (void **esp, struct stack_entries* args)
 
         /* Push pointers to arguments onto the stack */
         for (int i = args->argc; i >= 0; i--) {
-          esp = (void *) ((uint8_t *) esp - (sizeof(char*)));
+          DEC_ESP_BY_BYTES(esp, sizeof(char*));
           *esp = arg_pointers[i];
         }
         /* Push argv, argc, and dummy return address*/
         void* argv = esp;
-        esp = (void *) ((uint8_t *) esp - sizeof(char**));
+        DEC_ESP_BY_BYTES(esp, sizeof(char**));
         *esp = argv;
-        esp = (void *) ((uint8_t *) esp - sizeof(int));
+        DEC_ESP_BY_BYTES(esp, sizeof(int));
         *esp = (void *) args->argc;
-        esp = (void *) ((uint8_t *) esp - sizeof(void *));
+        DEC_ESP_BY_BYTES(esp, sizeof(void *));
         *esp = NULL;
       }
       else {
