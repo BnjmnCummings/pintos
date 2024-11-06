@@ -5,10 +5,8 @@
 
 #define SPACE_DELIM " "
 
-/* round stack pointer down to a multiple of 4 for word-aligned access*/
-#define TRUNCATE_SP(sp) ((sp) - (sp % 4))
 
-/* Stores the arguments needed to initalise a user process stack properly */
+/* Stores the arguments needed to initalise a user process stack */
 struct stack_entries 
 {
     char* argv[10]; /* Size of array is the maximum number of arguments a program is expected to get */

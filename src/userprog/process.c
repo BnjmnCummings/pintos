@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp, struct stack_entries* args);
@@ -43,19 +44,22 @@ process_execute (const char *file_name)
 
   // TODO: put arguments on stack
   // note: strok_r will not return an empty string if we have 2 consecutive delimeters
-  struct stack_entries args;
+  struct stack_entries* args = malloc(sizeof(struct stack_entries));
+  if (args == NULL) { 
+    ASSERT(false);
+  }
   int i = 0;
   char* argument = prog_name;
   for (; argument != NULL; argument = strtok_r(NULL, SPACE_DELIM, (char **) &save_ptr)) {
     //deal with arguments?
-    args.argv[i] = argument;
+    args->argv[i] = argument;
     i++;
   }
-  args.argc = i;
-  args.fn_copy = fn_copy;
+  args->argc = i;
+  args->fn_copy = fn_copy;
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (prog_name, PRI_DEFAULT, start_process, &args);
+  tid = thread_create (prog_name, PRI_DEFAULT, start_process, args);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -79,6 +83,7 @@ start_process (void *args)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
+  //free(args);
   if (!success) 
     thread_exit ();
 
@@ -474,24 +479,23 @@ setup_stack (void **esp, struct stack_entries* args)
         void* arg_pointers[args->argc+1];
         arg_pointers[args->argc] = NULL;  /* argv[argc] should be NULL according to the implementation */
         for (int i = args->argc - 1; i >= 0; i--) {
-          esp -= strlen(args->argv[i]) + 1;
+          esp = (void *) ((uint8_t *) esp - (strlen(args->argv[i])+1));
           strlcpy((char*) esp, args->argv[i], strlen(args->argv[i])+1);
           arg_pointers[i] = esp;
         }
 
-        esp = (void**) TRUNCATE_SP((int) esp);
-
         /* Push pointers to arguments onto the stack */
         for (int i = args->argc; i >= 0; i--) {
-          esp -= sizeof(char*);
+          esp = (void *) ((uint8_t *) esp - (sizeof(char*)));
           *esp = arg_pointers[i];
         }
         /* Push argv, argc, and dummy return address*/
-        esp -= sizeof(char**);
-        *esp = esp + sizeof(char**);
-        esp -= sizeof(int);
-        *(int*)*esp = args->argc;
-        esp -= sizeof(void*);
+        void* argv = esp;
+        esp = (void *) ((uint8_t *) esp - sizeof(char**));
+        *esp = argv;
+        esp = (void *) ((uint8_t *) esp - sizeof(int));
+        *esp = (void *) args->argc;
+        esp = (void *) ((uint8_t *) esp - sizeof(void *));
         *esp = NULL;
       }
       else {
