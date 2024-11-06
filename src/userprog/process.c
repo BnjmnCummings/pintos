@@ -83,7 +83,7 @@ start_process (void *args)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  //free(args);
+  free(args);
   if (!success) 
     thread_exit ();
 
