@@ -5,18 +5,26 @@
 
 #define SPACE_DELIM " "
 
+#define PAGE_LOWEST_ADRESS 0xBFFFF000 /* PHYS_BASE - 4KB */
+
 /* Uses type conversion to decrement provided void* pointer by a given number of bytes */
-#define DEC_ESP_BY_BYTES(esp, num) ((esp) = (void *) ((uint8_t *) (esp) - (num)))
+#define DEC_ESP_BY_BYTES(esp, num) ((void *) ((uint8_t *) (esp) - (num)))
 
 #define stack_push_element(esp, elem, type) ({ \
-    DEC_ESP_BY_BYTES((esp), sizeof(type)); \
-    *(esp) = (void*) (elem); \
-    })
+    if ((unsigned) DEC_ESP_BY_BYTES((esp), sizeof(type)) > PAGE_LOWEST_ADRESS) { \
+        esp = DEC_ESP_BY_BYTES((esp), sizeof(type)); \
+        *(esp) = (void*) (elem); \
+    } else { \
+        /* Come up with a way to deal with this */ \
+    } })
 
 #define stack_push_string(esp, elem) ({ \
-    DEC_ESP_BY_BYTES((esp), strlen((elem))+1); \
-    strlcpy((char*) (esp), (elem), strlen((elem))+1); \
-    })
+    if ((unsigned) DEC_ESP_BY_BYTES((esp), strlen((elem))+1) > PAGE_LOWEST_ADRESS) { \
+        esp = DEC_ESP_BY_BYTES((esp), strlen((elem))+1); \
+        strlcpy((char*) (esp), (elem), strlen((elem))+1); \
+    } else { \
+        /* Come up with a way to deal with this */ \
+    } })
 
 /* Stores the arguments needed to initalise a user process stack */
 struct stack_entries 

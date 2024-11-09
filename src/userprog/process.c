@@ -495,8 +495,6 @@ setup_stack (void **esp, struct stack_entries* args)
         stack_push_element(esp, argv, char**);
         stack_push_element(esp, args->argc, int);
         stack_push_element(esp, NULL, void*);
-
-        hex_dump((int) esp, esp, 60, true);
       }
       else {
         palloc_free_page (kpage);
