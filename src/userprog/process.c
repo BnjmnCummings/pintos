@@ -479,8 +479,7 @@ setup_stack (void **esp, struct stack_entries* args)
         void* arg_pointers[args->argc+1];
         arg_pointers[args->argc] = NULL;  /* argv[argc] should be NULL according to the implementation */
         for (int i = args->argc - 1; i >= 0; i--) {
-          DEC_ESP_BY_BYTES(esp, strlen(args->argv[i])+1);
-          strlcpy((char*) esp, args->argv[i], strlen(args->argv[i])+1);
+          stack_push_string(esp, args->argv[i]);
           arg_pointers[i] = esp;
         }
 
@@ -489,17 +488,15 @@ setup_stack (void **esp, struct stack_entries* args)
 
         /* Push pointers to arguments onto the stack */
         for (int i = args->argc; i >= 0; i--) {
-          DEC_ESP_BY_BYTES(esp, sizeof(char*));
-          *esp = arg_pointers[i];
+          stack_push_element(esp, arg_pointers[i], char*);
         }
         /* Push argv, argc, and dummy return address*/
         void* argv = esp;
-        DEC_ESP_BY_BYTES(esp, sizeof(char**));
-        *esp = argv;
-        DEC_ESP_BY_BYTES(esp, sizeof(int));
-        *esp = (void *) args->argc;
-        DEC_ESP_BY_BYTES(esp, sizeof(void *));
-        *esp = NULL;
+        stack_push_element(esp, argv, char**);
+        stack_push_element(esp, args->argc, int);
+        stack_push_element(esp, NULL, void*);
+
+        hex_dump((int) esp, esp, 60, true);
       }
       else {
         palloc_free_page (kpage);
