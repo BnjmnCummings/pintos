@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -20,7 +21,13 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   //validate the alleged pointer to System Call Number.
   // any invalid pointers/ edge cases should terminate the user process
+  if (is_user_vaddr(f->esp)) {
+    // not sure if we need to do more with this stack pointer
+    int32_t sys_call_number = (int32_t) f->esp;
+    printf ("System Call! System Call Number: %d\n", sys_call_number);
 
-  printf ("system call!\n");
-  thread_exit ();
+  }else {
+    printf ("invalid memory address!\n");
+    thread_exit ();
+  }
 }
