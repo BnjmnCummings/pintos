@@ -480,21 +480,23 @@ setup_stack (void **esp, struct stack_entries* args)
         arg_pointers[args->argc] = NULL;  /* argv[argc] should be NULL according to the implementation */
         for (int i = args->argc - 1; i >= 0; i--) {
           stack_push_string(esp, args->argv[i]);
-          arg_pointers[i] = esp;
+          arg_pointers[i] = *esp;
         }
 
         /* Round down to the nearest 4 bytes */
-        esp = (void *)((uintptr_t)esp & ~0x3);
+        *esp = (void *)((uintptr_t)*esp & ~0x3);
 
         /* Push pointers to arguments onto the stack */
         for (int i = args->argc; i >= 0; i--) {
           stack_push_element(esp, arg_pointers[i], char*);
         }
         /* Push argv, argc, and dummy return address*/
-        void* argv = esp;
+        void* argv = *esp;
         stack_push_element(esp, argv, char**);
         stack_push_element(esp, args->argc, int);
         stack_push_element(esp, NULL, void*);
+
+        hex_dump((int) *esp, *esp, 50, true);
       }
       else {
         palloc_free_page (kpage);

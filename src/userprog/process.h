@@ -11,17 +11,17 @@
 #define DEC_ESP_BY_BYTES(esp, num) ((void *) ((uint8_t *) (esp) - (num)))
 
 #define stack_push_element(esp, elem, type) ({ \
-    if ((unsigned) DEC_ESP_BY_BYTES((esp), sizeof(type)) > PAGE_LOWEST_ADRESS) { \
-        esp = DEC_ESP_BY_BYTES((esp), sizeof(type)); \
-        *(esp) = (void*) (elem); \
+    if ((unsigned) DEC_ESP_BY_BYTES(*(esp), sizeof(type)) > PAGE_LOWEST_ADRESS) { \
+        *esp = DEC_ESP_BY_BYTES(*(esp), sizeof(type)); \
+        **(type **)(esp) = (elem); \
     } else { \
         /* Come up with a way to deal with this */ \
     } })
 
 #define stack_push_string(esp, elem) ({ \
-    if ((unsigned) DEC_ESP_BY_BYTES((esp), strlen((elem))+1) > PAGE_LOWEST_ADRESS) { \
-        esp = DEC_ESP_BY_BYTES((esp), strlen((elem))+1); \
-        strlcpy((char*) (esp), (elem), strlen((elem))+1); \
+    if ((unsigned) DEC_ESP_BY_BYTES(*(esp), strlen((elem))+1) > PAGE_LOWEST_ADRESS) { \
+        *esp = DEC_ESP_BY_BYTES(*(esp), strlen((elem))+1); \
+        strlcpy((char*) *(esp), (elem), strlen((elem))+1); \
     } else { \
         /* Come up with a way to deal with this */ \
     } })
