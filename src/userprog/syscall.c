@@ -14,7 +14,7 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f UNUSED) 
+syscall_handler (struct intr_frame *f) 
 {
   if (is_user_vaddr(f->esp)) {
     int32_t *sys_call_number = (int32_t *) f->esp;
@@ -50,4 +50,12 @@ syscall_handler (struct intr_frame *f UNUSED)
     printf ("invalid memory address!\n");
     thread_exit ();
   }
+}
+
+void exit (int status)
+{
+    /* status must be stored somewhere, maybe in thread struct*/
+    struct thread *cur = thread_current ();
+    cur->exit_status = status;
+    thread_exit ();
 }
