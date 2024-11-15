@@ -59,3 +59,16 @@ void exit (int status)
     cur->exit_status = status;
     thread_exit ();
 }
+
+int write (int fd, const void *buffer, unsigned size) {
+  if (fd == 1) {
+    enum intr_level old_level = intr_disable ();
+    putbuf (buffer, size);
+    intr_set_level (old_level);
+    /* putbuf () is guaranteed to successfully print 'size' bytes to console*/
+    return size;
+  }
+  //todo get file path from fd
+  //disable interrupts
+  return 0;
+}
