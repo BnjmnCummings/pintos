@@ -475,6 +475,18 @@ setup_stack (void **esp, struct stack_entries* args)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
         *esp = PHYS_BASE;
+
+        /* Check if the arguments will overflow the stack */
+        void** final_addr = esp; 
+        for (int i = 0; i < args->argc; i++) {
+          *final_addr = DEC_ESP_BY_BYTES(*(final_addr), strlen((args->argv[i]))+1);
+        }
+        *final_addr = DEC_ESP_BY_BYTES(*(final_addr), sizeof(void*) * (args->argc + 4));
+
+        if ((unsigned) *final_addr <= PAGE_LOWEST_ADRESS) {
+          thread_exit ();
+        }
+
         /* Push argument strings onto the stack */
         void* arg_pointers[args->argc+1];
         arg_pointers[args->argc] = NULL;  /* argv[argc] should be NULL according to the implementation */
@@ -495,7 +507,6 @@ setup_stack (void **esp, struct stack_entries* args)
         stack_push_element(esp, argv, char**);
         stack_push_element(esp, args->argc, int);
         stack_push_element(esp, NULL, void*);
-
       }
       else {
         palloc_free_page (kpage);
