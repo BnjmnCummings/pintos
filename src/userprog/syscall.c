@@ -12,10 +12,10 @@ static void syscall_handler (struct intr_frame *);
 
 static void write (int32_t *args, uint32_t *returnValue);
 static void exit (int32_t *args, uint32_t *returnValue UNUSED);
-
 static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void exec (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void wait (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
+static void exec (int32_t *args, uint32_t *returnValue);
+static void wait (int32_t *args, uint32_t *returnValue);
+
 static void create (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
 static void remove (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
 static void open (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
