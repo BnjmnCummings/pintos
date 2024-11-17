@@ -266,6 +266,43 @@ static void exit (int32_t *args, uint32_t *returnValue UNUSED)
     thread_exit ();
 }
 
+/* Reads from a file into a buffer. */
+static void
+read (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+{
+  int fd = *(int *) args[0];
+  void *buffer = (void *) args[1];
+  unsigned size = *(unsigned *) args[2];
+
+  if (fd == 0) {
+    int inputs_read = 0;
+    
+    uint8_t *input_buffer = (uint8_t *) buffer
+    for (unsigned i = 0; i < size; i++) {
+      input_buffer[i] = input_getc();
+      inputs_read++;
+    }
+
+    *returnValue = inputs_read;
+    return;
+  }
+
+  lock_acquire(&filesys_lock);
+  
+  struct file *f = file_lookup(fd);
+
+  if (f == NULL) {
+    *returnValue = 0;
+    lock_release(&filesys_lock);
+    return;
+  }
+
+  off_t amount_read = file_write(f, read, size);
+  *returnValue = (unsigned) amount_read;
+
+  lock_release(&filesys_lock);
+}
+
 /* System write call from a buffer to a file associated with a given fd. */
 static void write (int32_t *args, uint32_t *returnValue) 
 {
@@ -274,8 +311,6 @@ static void write (int32_t *args, uint32_t *returnValue)
   unsigned size = *(unsigned *) args[2];
 
   if (fd == 1) {
-    enum intr_level old_level = intr_disable ();
-    
     /* Only write to stdout by a constant amount of bytes per write */
     unsigned written = 0;
     while (bytes_written < size) {
@@ -286,19 +321,24 @@ static void write (int32_t *args, uint32_t *returnValue)
       written += block_size;
     }
 
-    intr_set_level (old_level);
-
     *returnValue = size;
     return;
   }
+
+  lock_acquire(&filesys_lock);
   
   struct file *f = file_lookup(fd);
 
   if (f == NULL) {
     *returnValue = 0;
+    lock_release(&filesys_lock);
     return;
   }
 
+  off_t amount_written = file_write(f, buffer, size);
+  *returnValue = (unsigned) amount_written;
+
+  lock_release(&filesys_lock);
 }
 
 static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
@@ -310,10 +350,6 @@ static void exec (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
   return;
 }
 static void wait (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
-static void read (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   return;
 }
