@@ -1,6 +1,5 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
-#include "lib/user/syscall.h"
 #include "filesys/file.c"
 #include <inttypes.h>
 
@@ -10,7 +9,11 @@ struct file_elem {
     int fd;
     struct file *faddr;
     struct hash_elem hash_elem;
-}
+};
+
+unsigned file_elem_hash (const struct hash_elem *, void *aux UNUSED);
+bool file_elem_less (const struct hash_elem *, const struct hash_elem *, void *aux UNUSED);
+struct file *file_lookup (const int);
 
 void syscall_init (void);
 typedef void (*handler) (int32_t *, uint32_t *);

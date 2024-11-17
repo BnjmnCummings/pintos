@@ -90,7 +90,7 @@ allocate_fd (void)
 
 /* Returns a hash for file p via its fd. */
 unsigned
-file_hash (const struct hash_elem *f_, void *aux UNUSED)
+file_elem_hash (const struct hash_elem *f_, void *aux UNUSED)
 {
   const struct file_elem *f = hash_entry (f_, struct file_elem, hash_elem);
   return hash_int(f->fd);
@@ -98,7 +98,7 @@ file_hash (const struct hash_elem *f_, void *aux UNUSED)
 
 /* Returns true if the fd of file a precedes file b. */
 bool
-file_less (const struct hash_elem *a_, const struct hash_elem *b_,
+file_elem_less (const struct hash_elem *a_, const struct hash_elem *b_,
 void *aux UNUSED)
 {
   const struct file_elem *a = hash_entry (a_, struct file_elem, hash_elem);
@@ -115,23 +115,25 @@ file_lookup (const int fd)
   struct file_elem temp;
   struct hash_elem *e;
   temp.fd = fd;
-  e = hash_find (t->files, &temp.hash_elem);
-  return e != NULL ? hash_entry (e, struct file_elem, hash_elem) : NULL;
+  e = hash_find (&t->files, &temp.hash_elem);
+  return e != NULL ? hash_entry (e, struct file_elem, hash_elem)->faddr : NULL;
 }
 
 /* Closes a file by removing its element from the hash table and freeing it. */
 static void
 close (int32_t *args, uint32_t *returnValue UNUSED)
 {
-  int fd = *(int *) args
+  int fd = *(int *) args;
+
+  struct thread *t = thread_current();
 
   struct file_elem temp;
   struct hash_elem *e;
   temp.fd = fd;
-  e = hash_find (t->files, &temp.hash_elem);
+  e = hash_find (&t->files, &temp.hash_elem);
 
   if (e != NULL) {
-    hash_delete(file_table, e);
+    hash_delete(&t->files, e);
 
     /* Free dynamically allocated file element we've just removed */
     struct file_elem *fe = hash_entry(e, struct file_elem, hash_elem);
@@ -154,7 +156,7 @@ open (int32_t *args, uint32_t *returnValue)
   f->faddr = faddr;
   f->fd = allocate_fd();
   
-  struct hash_elem *res = hash_insert(t->files, &f->hash_elem);
+  struct hash_elem *res = hash_insert(&t->files, &f->hash_elem);
   if (res != NULL) {
       free(&f);
   }
@@ -166,8 +168,8 @@ open (int32_t *args, uint32_t *returnValue)
 static void
 seek (int32_t *args, uint32_t *returnValue UNUSED)
 {
-  int fd = *(int *) args[0]
-  unsigned position = *(unsigned *) args[1]
+  int fd = *(int *) args[0];
+  unsigned position = *(unsigned *) args[1];
 
   struct file *f = file_lookup(fd);
 
@@ -178,11 +180,11 @@ seek (int32_t *args, uint32_t *returnValue UNUSED)
   f->pos = position;
 }
 
-/* Returns the next read-write position of a file. *//
+/* Returns the next read-write position of a file. */
 static void
 tell (int32_t *args, uint32_t *returnValue)
 {
-  int fd = *(int *) args
+  int fd = *(int *) args;
 
   struct file *f = file_lookup(fd);
 
