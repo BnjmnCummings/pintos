@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include <hash.h>
 #include <inttypes.h>
+#include "threads/malloc.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
@@ -177,7 +178,7 @@ seek (int32_t *args, uint32_t *returnValue UNUSED)
     return;
   }
 
-  f->pos = position;
+  file_seek(f, position);
 }
 
 /* Returns the next read-write position of a file. */
@@ -190,7 +191,7 @@ tell (int32_t *args, uint32_t *returnValue)
 
   ASSERT(f != NULL)
 
-  *returnValue = f->pos;
+  *returnValue = file_tell(f);
 }
 
 /* void exit (int status) */

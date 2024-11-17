@@ -16,6 +16,7 @@
 #include "threads/fixed-point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "userprog/syscall.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -722,7 +723,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
 #ifdef USERPROG
-  hash_init (&t->files, file_hash, file_less, NULL)
+  hash_init (&t->files, file_elem_hash, file_elem_less, NULL);
 #endif
 
   array_init_prio (t->donated_prios);

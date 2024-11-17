@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <hash.h>
 #include "threads/synch.h"
 
 /* States in a thread's life cycle. */
@@ -114,7 +115,7 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    struct hash files;                   /* Hash table of accessible files. */
+    struct hash files;                  /* Hash table of accessible files. */
     int exit_status;
 #endif
 
