@@ -28,7 +28,7 @@ allocate_fd (void)
 unsigned
 file_hash (const struct hash_elem *f_, void *aux UNUSED)
 {
-  const struct file_elem *fe = hash_entry (f_, struct file_elem, hash_elem);
+  const struct file_elem *f = hash_entry (f_, struct file_elem, hash_elem);
   return allocate_fd()
 }
 
@@ -40,6 +40,18 @@ void *aux UNUSED)
   const struct file_elem *a = hash_entry (a_, struct file_elem, hash_elem);
   const struct file_elem *b = hash_entry (b_, struct file_elem, hash_elem);
   return a->fd < b->fd;
+}
+
+/* Returns the file pointer associated the given fd,
+or a null pointer if no such file exists. */
+struct file *
+file_lookup (struct thread *t, const int fd)
+{
+  struct file_elem f;
+  struct hash_elem *e;
+  f.fd = fd;
+  e = hash_find (t->files, &f.hash_elem);
+  return e != NULL ? hash_entry (e, struct file_elem, hash_elem) : NULL;
 }
 
 void
