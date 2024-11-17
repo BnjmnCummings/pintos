@@ -6,6 +6,16 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include "threads/synch.h"
+#include "threads/thread.h"
+#include "userprog/pagedir.h"
+
+#define get_argument(var_name, arg_ptr, type) \
+({ \
+    if ((void*) arg_ptr == NULL || !is_user_vaddr((const void*) arg_ptr) || pagedir_get_page(thread_current()->pagedir, (void*) arg_ptr) == NULL) { \
+        thread_exit(); \
+    } \
+    var_name = (type) (arg_ptr); \
+})
 
 struct exec_waiter {
     struct semaphore sema;
