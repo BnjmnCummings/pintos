@@ -123,6 +123,20 @@ file_lookup (const int fd)
   return e != NULL ? hash_entry (e, struct file_elem, hash_elem)->faddr : NULL;
 }
 
+/* Removes a file from the file system given its name. */
+static void
+remove (int32_t *args, uint32_t *returnValue)
+{
+  const char *name = (const char *) args[0];
+  unsigned initial_size = *(unsigned *) args[1];
+
+  lock_acquire(&filesys_lock);
+  bool returnStatus = filesys_remove(name);
+  lock_release(&filesys_lock);
+
+  *returnValue = returnStats;
+}
+
 /* Creates a new file in the filesystem */
 static void 
 create (int32_t *args, uint32_t *returnValue)
@@ -166,11 +180,15 @@ open (int32_t *args, uint32_t *returnValue)
   const char *file = (const char *) args[0];
   struct thread *t = thread_current();
 
-  // TODO: DENY ACCESS WITH FD_ERROR
-
   lock_acquire(&filesys_lock);
   struct file *faddr = filesys_open(file);
   lock_release(&filesys_lock);
+
+  /* The failure return value for filesys_open is NULL. */
+  if (faddr == NULL) {
+    *returnValue = FD_ERROR;
+    return;
+  }
   
   struct file_elem *f = malloc(sizeof(struct file_elem));
   f->faddr = faddr;
@@ -178,7 +196,7 @@ open (int32_t *args, uint32_t *returnValue)
   
   struct hash_elem *res = hash_insert(&t->files, &f->hash_elem);
   if (res != NULL) {
-      free(&f);
+    free(&f);
   }
 
   *returnValue = f->fd;
@@ -278,10 +296,6 @@ static void exec (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
   return;
 }
 static void wait (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
-static void remove (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   return;
 }
