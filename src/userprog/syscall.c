@@ -20,15 +20,15 @@ static void exit (int32_t *args, uint32_t *returnValue UNUSED);
 static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
 static void exec (int32_t *args, uint32_t *returnValue);
 static void wait (int32_t *args, uint32_t *returnValue);
+static void open (int32_t *args, uint32_t *returnValue);
+static void seek (int32_t *args, uint32_t *returnValue UNUSED);
+static void tell (int32_t *args, uint32_t *returnValue);
+static void close (int32_t *args, uint32_t *returnValue UNUSED);
 
 static void create (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void remove (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void open (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
 static void filesize (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
+static void remove (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
 static void read (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void seek (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void tell (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void close (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
 
 static handler sys_call_handlers[19] = {
     halt,                   /* Halt the operating system. */
@@ -123,10 +123,11 @@ file_lookup (const int fd)
 }
 
 /* Closes a file by removing its element from the hash table and freeing it. */
+/* SIGNATURE: void close (int fd) */
 static void
 close (int32_t *args, uint32_t *returnValue UNUSED)
 {
-  int fd = *(int *) args;
+  int fd = *(int *) args[0];
 
   struct thread *t = thread_current();
 
@@ -145,10 +146,11 @@ close (int32_t *args, uint32_t *returnValue UNUSED)
 }
 
 /* Opens a file for a process by adding it to its access hash table. */
+/* SIGNATURE: int open (const char *file) */
 static void
 open (int32_t *args, uint32_t *returnValue) 
 {
-  const char *file = (const char *) args;
+  const char *file = (const char *) args[0];
   struct thread *t = thread_current();
 
   // TODO: DENY ACCESS WITH FD_ERROR
@@ -168,6 +170,7 @@ open (int32_t *args, uint32_t *returnValue)
 }
 
 /* Changes a file's read-write position based on its fd. */
+/* SIGNATURE: void seek (int fd, unsigned position) */
 static void
 seek (int32_t *args, uint32_t *returnValue UNUSED)
 {
@@ -184,10 +187,11 @@ seek (int32_t *args, uint32_t *returnValue UNUSED)
 }
 
 /* Returns the next read-write position of a file. */
+/* SIGNATURE: unsigned tell (int fd) */
 static void
 tell (int32_t *args, uint32_t *returnValue)
 {
-  int fd = *(int *) args;
+  int fd = *(int *) args[0];
 
   struct file *f = file_lookup(fd);
 
@@ -196,8 +200,9 @@ tell (int32_t *args, uint32_t *returnValue)
   *returnValue = file_tell(f);
 }
 
-/* void exit (int status) */
-static void exit (int32_t *args, uint32_t *returnValue UNUSED)
+/* SIGNATURE: void exit (int status) */
+static void 
+exit (int32_t *args, uint32_t *returnValue UNUSED)
 {
     /* status must be stored somewhere, maybe in thread struct*/
     struct thread *cur = thread_current ();
@@ -205,8 +210,9 @@ static void exit (int32_t *args, uint32_t *returnValue UNUSED)
     thread_exit ();
 }
 
-/* int write (int fd, const void *buffer, unsigned size) */
-static void write (int32_t *args, uint32_t *returnValue) 
+/* SIGNATURE: int write (int fd, const void *buffer, unsigned size) */
+static void 
+write (int32_t *args, uint32_t *returnValue) 
 {
   /* arguments */
   int fd = args[0];
@@ -225,13 +231,16 @@ static void write (int32_t *args, uint32_t *returnValue)
   *returnValue = 0;
 }
 
-static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+/* SIGNATURE: void halt (void) */
+static void 
+halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   shutdown_power_off ();
 }
 
-/* tid_t exec (const char* comand_line) */
-static void exec (int32_t *args, uint32_t *returnValue)
+/* SIGNATURE: tid_t exec (const char* comand_line) */
+static void 
+exec (int32_t *args, uint32_t *returnValue)
 {
   char *cmd_line = (char *) args[0];
 
@@ -249,8 +258,9 @@ static void exec (int32_t *args, uint32_t *returnValue)
   *returnValue = TID_ERROR;
 }
 
-/* int wait (tid_t pid) */
-static void wait (int32_t *args, uint32_t *returnValue)
+/* SIGNATURE: int wait (tid_t pid) */
+static void 
+wait (int32_t *args, uint32_t *returnValue)
 {
   tid_t pid = args[0];
   *returnValue = process_wait(pid);

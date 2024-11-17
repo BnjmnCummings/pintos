@@ -23,8 +23,8 @@ struct file_elem {
 unsigned file_elem_hash (const struct hash_elem *, void *aux);
 bool file_elem_less (const struct hash_elem *, const struct hash_elem *, void *aux);
 struct file *file_lookup (const int);
-
 void syscall_init (void);
+
 typedef void (*handler) (int32_t *, uint32_t *);
 
 #endif /* userprog/syscall.h */
