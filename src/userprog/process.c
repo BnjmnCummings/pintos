@@ -17,9 +17,10 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool load (const char *cmdline, void (**eip) (void), void **esp, struct stack_entries* args);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -31,7 +32,8 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
-  const char *prog_name  = strtok_r((char *) file_name, SPACE_DELIM, (char **) &file_name);
+  char *save_ptr;
+  char *prog_name  = strtok_r((char *) file_name, SPACE_DELIM, (char **) &save_ptr);
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -40,26 +42,35 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, prog_name, PGSIZE);
 
+  // TODO: put arguments on stack
+  // note: strok_r will not return an empty string if we have 2 consecutive delimeters
+  struct stack_entries* args = malloc(sizeof(struct stack_entries));
+  if (args == NULL) { 
+    ASSERT(false);
+  }
+  int i = 0;
+  char* argument = prog_name;
+  for (; argument != NULL; argument = strtok_r(NULL, SPACE_DELIM, (char **) &save_ptr)) {
+    //deal with arguments?
+    args->argv[i] = argument;
+    i++;
+  }
+  args->argc = i;
+  args->fn_copy = fn_copy;
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (prog_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (prog_name, PRI_DEFAULT, start_process, args);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
-
-  // (unreachable) TODO: put arguments on stack
-  // note: strok_r will not return an empty string if we have 2 consecutive delimeters
-  char* token;
-  while ((token = strtok_r((char *) file_name, SPACE_DELIM, (char **) &file_name))) {
-    //deal with arguments?
-  }
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)
+start_process (void *args)
 {
-  char *file_name = file_name_;
+  char *file_name = ((struct stack_entries*) args)->fn_copy;
   struct intr_frame if_;
   bool success;
 
@@ -68,10 +79,11 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (file_name, &if_.eip, &if_.esp, (struct stack_entries*) args);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
+  free(args);
   if (!success) 
     thread_exit ();
 
@@ -206,7 +218,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, struct stack_entries* args);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -217,7 +229,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp) 
+load (const char *file_name, void (**eip) (void), void **esp, struct stack_entries* args) 
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -313,7 +325,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, args))
     goto done;
 
   /* Start address. */
@@ -452,7 +464,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, struct stack_entries* args) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -461,11 +473,44 @@ setup_stack (void **esp)
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        // fakes the setup for a minimal stack
-        *esp = PHYS_BASE - 12;
-      else
+      if (success) {
+        *esp = PHYS_BASE;
+
+        /* Check if the arguments will overflow the stack */
+        void** final_addr = esp; 
+        for (int i = 0; i < args->argc; i++) {
+          *final_addr = DEC_ESP_BY_BYTES(*(final_addr), strlen((args->argv[i]))+1);
+        }
+        *final_addr = DEC_ESP_BY_BYTES(*(final_addr), sizeof(void*) * (args->argc + 4));
+
+        if ((unsigned) *final_addr <= PAGE_LOWEST_ADRESS) {
+          thread_exit ();
+        }
+
+        /* Push argument strings onto the stack */
+        void* arg_pointers[args->argc+1];
+        arg_pointers[args->argc] = NULL;  /* argv[argc] should be NULL according to the implementation */
+        for (int i = args->argc - 1; i >= 0; i--) {
+          stack_push_string(esp, args->argv[i]);
+          arg_pointers[i] = *esp;
+        }
+
+        /* Round down to the nearest 4 bytes */
+        *esp = (void *)((uintptr_t)*esp & ~0x3);
+
+        /* Push pointers to arguments onto the stack */
+        for (int i = args->argc; i >= 0; i--) {
+          stack_push_element(esp, arg_pointers[i], char*);
+        }
+        /* Push argv, argc, and dummy return address*/
+        void* argv = *esp;
+        stack_push_element(esp, argv, char**);
+        stack_push_element(esp, args->argc, int);
+        stack_push_element(esp, NULL, void*);
+      }
+      else {
         palloc_free_page (kpage);
+      }
     }
   return success;
 }

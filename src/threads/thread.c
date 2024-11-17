@@ -460,6 +460,7 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
+  // TODO: handle exit status before destroying thread
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
@@ -467,6 +468,7 @@ thread_exit (void)
      when it calls thread_schedule_tail(). */
   intr_disable ();
   list_remove (&thread_current ()->allelem);
+
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
