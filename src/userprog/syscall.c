@@ -266,25 +266,39 @@ static void exit (int32_t *args, uint32_t *returnValue UNUSED)
     thread_exit ();
 }
 
-/* int write (int fd, const void *buffer, unsigned size) */
+/* System write call from a buffer to a file associated with a given fd. */
 static void write (int32_t *args, uint32_t *returnValue) 
 {
-  /* arguments */
-  int fd = args[0];
+  int fd = *(int *) args[0];
   const void *buffer = (void *) args[1];
-  unsigned size = args[2];
+  unsigned size = *(unsigned *) args[2];
 
   if (fd == 1) {
     enum intr_level old_level = intr_disable ();
-    putbuf (buffer, size);
+    
+    /* Only write to stdout by a constant amount of bytes per write */
+    unsigned written = 0;
+    while (bytes_written < size) {
+      unsigned block_size = (size - written > MAX_STDOUT_BUFF_SIZE)
+                            ? MAX_STDOUT_BUFF_SIZE
+                            : size - written;
+      putbuf((char *)buffer + written, block_size);
+      written += block_size;
+    }
+
     intr_set_level (old_level);
-    /* putbuf () is guaranteed to successfully print 'size' bytes to console*/
+
     *returnValue = size;
     return;
   }
-  //todo get file path from fd
-  *returnValue = 0;
-  return;
+  
+  struct file *f = file_lookup(fd);
+
+  if (f == NULL) {
+    *returnValue = 0;
+    return;
+  }
+
 }
 
 static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
