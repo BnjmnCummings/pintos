@@ -719,6 +719,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->effective_priority = priority;
   t->magic = THREAD_MAGIC;
 
+#ifdef USERPROG
+  hash_init (&t->files, file_hash, file_less, NULL)
+#endif
+
   array_init_prio (t->donated_prios);
 
   old_level = intr_disable ();

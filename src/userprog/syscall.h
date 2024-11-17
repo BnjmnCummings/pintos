@@ -1,6 +1,15 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 #include "lib/user/syscall.h"
+#include "filesys/file.c"
+
+#define FD_ERROR -1               /* Error value for file descriptors. */
+
+struct file_elem {
+    int fd;
+    file *file_addr;
+    struct hash_elem hash_elem;
+}
 
 void syscall_init (void);
 

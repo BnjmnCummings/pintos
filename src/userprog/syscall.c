@@ -7,6 +7,41 @@
 
 static void syscall_handler (struct intr_frame *);
 
+/* Lock used by allocate_fd(). */
+static struct lock fd_lock;
+
+/* Returns a file descriptor to use for a new file. */
+static int
+allocate_fd (void) 
+{
+  static int next_fd = 2;
+  int fd;
+
+  lock_acquire (&fd_lock);
+  fd = next_fd++;
+  lock_release (&fd_lock);
+
+  return fd;
+}
+
+/* Returns a hash for file p via allocation of an fd. */
+unsigned
+file_hash (const struct hash_elem *f_, void *aux UNUSED)
+{
+  const struct file_elem *fe = hash_entry (f_, struct file_elem, hash_elem);
+  return allocate_fd()
+}
+
+/* Returns true if the fd of file a precedes file b. */
+bool
+file_less (const struct hash_elem *a_, const struct hash_elem *b_,
+void *aux UNUSED)
+{
+  const struct file_elem *a = hash_entry (a_, struct file_elem, hash_elem);
+  const struct file_elem *b = hash_entry (b_, struct file_elem, hash_elem);
+  return a->fd < b->fd;
+}
+
 void
 syscall_init (void) 
 {
