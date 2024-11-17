@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include <hash.h>
 #include <inttypes.h>
+#include "devices/input.h"
 #include "threads/malloc.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -128,13 +129,12 @@ static void
 remove (int32_t *args, uint32_t *returnValue)
 {
   const char *name = (const char *) args[0];
-  unsigned initial_size = *(unsigned *) args[1];
 
   lock_acquire(&filesys_lock);
   bool returnStatus = filesys_remove(name);
   lock_release(&filesys_lock);
 
-  *returnValue = returnStats;
+  *returnValue = returnStatus;
 }
 
 /* Creates a new file in the filesystem */
@@ -142,20 +142,20 @@ static void
 create (int32_t *args, uint32_t *returnValue)
 {
   const char *name = (const char *) args[0];
-  unsigned initial_size = *(unsigned *) args[1];
+  unsigned initial_size = (unsigned) args[1];
 
   lock_acquire(&filesys_lock);
   bool returnStatus = filesys_create(name, initial_size);
   lock_release(&filesys_lock);
 
-  *returnValue = returnStats;
+  *returnValue = returnStatus;
 }
 
 /* Closes a file by removing its element from the hash table and freeing it. */
 static void
 close (int32_t *args, uint32_t *returnValue UNUSED)
 {
-  int fd = *(int *) args[0];
+  int fd = (int) args[0];
 
   struct thread *t = thread_current();
 
@@ -206,7 +206,7 @@ open (int32_t *args, uint32_t *returnValue)
 static void 
 filesize (int32_t *args, uint32_t *returnValue)
 {
-  int fd = *(int *) args[0];
+  int fd = (int) args[0];
   
   lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
@@ -224,8 +224,8 @@ filesize (int32_t *args, uint32_t *returnValue)
 static void
 seek (int32_t *args, uint32_t *returnValue UNUSED)
 {
-  int fd = *(int *) args[0];
-  unsigned position = *(unsigned *) args[1];
+  int fd = (int) args[0];
+  unsigned position = (unsigned) args[1];
 
   lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
@@ -243,7 +243,7 @@ seek (int32_t *args, uint32_t *returnValue UNUSED)
 static void
 tell (int32_t *args, uint32_t *returnValue)
 {
-  int fd = *(int *) args[0];
+  int fd = (int) args[0];
   
   lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
@@ -258,7 +258,8 @@ tell (int32_t *args, uint32_t *returnValue)
 }
 
 /* void exit (int status) */
-static void exit (int32_t *args, uint32_t *returnValue UNUSED)
+static void 
+exit (int32_t *args, uint32_t *returnValue UNUSED)
 {
     /* status must be stored somewhere, maybe in thread struct*/
     struct thread *cur = thread_current ();
@@ -270,14 +271,14 @@ static void exit (int32_t *args, uint32_t *returnValue UNUSED)
 static void
 read (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
-  int fd = *(int *) args[0];
+  int fd = (int) args[0];
   void *buffer = (void *) args[1];
-  unsigned size = *(unsigned *) args[2];
+  unsigned size = (unsigned) args[2];
 
   if (fd == 0) {
     int inputs_read = 0;
     
-    uint8_t *input_buffer = (uint8_t *) buffer
+    uint8_t *input_buffer = (uint8_t *) buffer;
     for (unsigned i = 0; i < size; i++) {
       input_buffer[i] = input_getc();
       inputs_read++;
@@ -304,16 +305,17 @@ read (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 }
 
 /* System write call from a buffer to a file associated with a given fd. */
-static void write (int32_t *args, uint32_t *returnValue) 
+static void 
+write (int32_t *args, uint32_t *returnValue) 
 {
-  int fd = *(int *) args[0];
+  int fd = (int) args[0];
   const void *buffer = (void *) args[1];
-  unsigned size = *(unsigned *) args[2];
+  unsigned size = (unsigned) args[2];
 
   if (fd == 1) {
     /* Only write to stdout by a constant amount of bytes per write */
     unsigned written = 0;
-    while (bytes_written < size) {
+    while (written < size) {
       unsigned block_size = (size - written > MAX_STDOUT_BUFF_SIZE)
                             ? MAX_STDOUT_BUFF_SIZE
                             : size - written;
