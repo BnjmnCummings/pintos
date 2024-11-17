@@ -1,10 +1,15 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <hash.h>
 #include <inttypes.h>
+#include "threads/malloc.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+
+/* Lock used by allocate_fd(). */
+static struct lock fd_lock;
 
 static void syscall_handler (struct intr_frame *);
 
@@ -70,6 +75,125 @@ syscall_handler (struct intr_frame *f)
   }
 }
 
+/* Returns a file descriptor to use for a new file. */
+static int
+allocate_fd (void) 
+{
+  static int next_fd = 2;
+  int fd;
+
+  lock_acquire (&fd_lock);
+  fd = next_fd++;
+  lock_release (&fd_lock);
+
+  return fd;
+}
+
+/* Returns a hash for file p via its fd. */
+unsigned
+file_elem_hash (const struct hash_elem *f_, void *aux UNUSED)
+{
+  const struct file_elem *f = hash_entry (f_, struct file_elem, hash_elem);
+  return hash_int(f->fd);
+}
+
+/* Returns true if the fd of file a precedes file b. */
+bool
+file_elem_less (const struct hash_elem *a_, const struct hash_elem *b_,
+void *aux UNUSED)
+{
+  const struct file_elem *a = hash_entry (a_, struct file_elem, hash_elem);
+  const struct file_elem *b = hash_entry (b_, struct file_elem, hash_elem);
+  return a->fd < b->fd;
+}
+
+/* Returns the file pointer associated the given fd,
+or a null pointer if no such file exists. */
+struct file *
+file_lookup (const int fd)
+{
+  struct thread *t = thread_current();
+  struct file_elem temp;
+  struct hash_elem *e;
+  temp.fd = fd;
+  e = hash_find (&t->files, &temp.hash_elem);
+  return e != NULL ? hash_entry (e, struct file_elem, hash_elem)->faddr : NULL;
+}
+
+/* Closes a file by removing its element from the hash table and freeing it. */
+static void
+close (int32_t *args, uint32_t *returnValue UNUSED)
+{
+  int fd = *(int *) args;
+
+  struct thread *t = thread_current();
+
+  struct file_elem temp;
+  struct hash_elem *e;
+  temp.fd = fd;
+  e = hash_find (&t->files, &temp.hash_elem);
+
+  if (e != NULL) {
+    hash_delete(&t->files, e);
+
+    /* Free dynamically allocated file element we've just removed */
+    struct file_elem *fe = hash_entry(e, struct file_elem, hash_elem);
+    free(fe);
+  }
+}
+
+/* Opens a file for a process by adding it to its access hash table. */
+static void
+open (int32_t *args, uint32_t *returnValue) 
+{
+  const char *file = (const char *) args;
+  struct thread *t = thread_current();
+
+  // TODO: DENY ACCESS WITH FD_ERROR
+
+  struct file *faddr = filesys_open(file);
+  
+  struct file_elem *f = malloc(sizeof(struct file_elem));
+  f->faddr = faddr;
+  f->fd = allocate_fd();
+  
+  struct hash_elem *res = hash_insert(&t->files, &f->hash_elem);
+  if (res != NULL) {
+      free(&f);
+  }
+
+  *returnValue = f->fd;
+}
+
+/* Changes a file's read-write position based on its fd. */
+static void
+seek (int32_t *args, uint32_t *returnValue UNUSED)
+{
+  int fd = *(int *) args[0];
+  unsigned position = *(unsigned *) args[1];
+
+  struct file *f = file_lookup(fd);
+
+  if (f == NULL) {
+    return;
+  }
+
+  file_seek(f, position);
+}
+
+/* Returns the next read-write position of a file. */
+static void
+tell (int32_t *args, uint32_t *returnValue)
+{
+  int fd = *(int *) args;
+
+  struct file *f = file_lookup(fd);
+
+  ASSERT(f != NULL)
+
+  *returnValue = file_tell(f);
+}
+
 /* void exit (int status) */
 static void exit (int32_t *args, uint32_t *returnValue UNUSED)
 {
@@ -120,27 +244,11 @@ static void remove (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   return;
 }
-static void open (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
 static void filesize (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   return;
 }
 static void read (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
-static void seek (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
-static void tell (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
-static void close (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   return;
 }
