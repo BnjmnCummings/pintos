@@ -126,9 +126,11 @@ open (const char *file)
   struct thread *t = thread_current();
 
   // TODO: DENY ACCESS WITH FD_ERROR
+
+  struct file *faddr = filesys_open(file);
   
   struct file_elem *f = malloc(sizeof(struct file_elem));
-  f->faddr = file;
+  f->faddr = faddr;
   f->fd = allocate_fd();
   
   struct hash_elem *res = hash_insert(t->files, &f->hash_elem);
