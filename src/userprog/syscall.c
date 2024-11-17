@@ -125,9 +125,9 @@ file_lookup (const int fd)
 
 /* Creates a new file in the filesystem */
 static void 
-create (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+create (int32_t *args, uint32_t *returnValue)
 {
-  const char *name = *(const char *) args[0];
+  const char *name = (const char *) args[0];
   unsigned initial_size = *(unsigned *) args[1];
 
   lock_acquire(&filesys_lock);
@@ -141,7 +141,7 @@ create (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 static void
 close (int32_t *args, uint32_t *returnValue UNUSED)
 {
-  int fd = *(int *) args;
+  int fd = *(int *) args[0];
 
   struct thread *t = thread_current();
 
@@ -163,7 +163,7 @@ close (int32_t *args, uint32_t *returnValue UNUSED)
 static void
 open (int32_t *args, uint32_t *returnValue) 
 {
-  const char *file = (const char *) args;
+  const char *file = (const char *) args[0];
   struct thread *t = thread_current();
 
   // TODO: DENY ACCESS WITH FD_ERROR
@@ -182,6 +182,24 @@ open (int32_t *args, uint32_t *returnValue)
   }
 
   *returnValue = f->fd;
+}
+
+/* Returns the size of the file associated with a given fd. */
+static void 
+filesize (int32_t *args, uint32_t *returnValue)
+{
+  int fd = *(int *) args[0];
+  
+  lock_acquire(&filesys_lock);
+  struct file *f = file_lookup(fd);
+
+  if (f == NULL) {
+    lock_release(&filesys_lock);
+    return;
+  }
+  
+  *returnValue = (unsigned) file_length(f);
+  lock_release(&filesys_lock);
 }
 
 /* Changes a file's read-write position based on its fd. */
@@ -207,7 +225,7 @@ seek (int32_t *args, uint32_t *returnValue UNUSED)
 static void
 tell (int32_t *args, uint32_t *returnValue)
 {
-  int fd = *(int *) args;
+  int fd = *(int *) args[0];
   
   lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
@@ -217,7 +235,7 @@ tell (int32_t *args, uint32_t *returnValue)
     return;
   }
 
-  *returnValue = file_tell(f);
+  *returnValue = (unsigned) file_tell(f);
   lock_release(&filesys_lock);
 }
 
@@ -264,10 +282,6 @@ static void wait (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
   return;
 }
 static void remove (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
-static void filesize (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   return;
 }
