@@ -77,7 +77,7 @@ static void exit (int32_t *args, uint32_t *returnValue UNUSED)
 {
     /* status must be stored somewhere, maybe in thread struct*/
     struct thread *cur = thread_current ();
-    cur->exit_status = (int) *args;
+    cur->exit_status = (int) args[0];
     thread_exit ();
 }
 
@@ -99,7 +99,6 @@ static void write (int32_t *args, uint32_t *returnValue)
   }
   //todo get file path from fd
   *returnValue = 0;
-  return;
 }
 
 static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
@@ -107,18 +106,25 @@ static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
   shutdown_power_off ();
 }
 
+/* pid exec(const char* comand_line) */
 static void exec (int32_t *args, uint32_t *returnValue)
 {
+  char *cmd_line = (char *) args[0];
+
   struct exec_waiter waiter;
   sema_init(&waiter.sema, 0);
-  char *cmd_line = (char *) args;
 
   tid_t pid = process_execute(cmd_line, &waiter);
   sema_down(&waiter.sema);
-  if (waiter.success)
+
+  if (waiter.success) {
     *returnValue = pid;
+    return;
+  }
+
   *returnValue = TID_ERROR;
 }
+
 static void wait (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   return;
