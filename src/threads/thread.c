@@ -335,6 +335,10 @@ thread_create (const char *name, int priority,
   t->nice = thread_current ()->nice;
   t->recent_cpu = thread_current ()->recent_cpu;
 
+#ifdef USERPROG
+  hash_init (&t->files, file_elem_hash, file_elem_less, NULL);
+#endif
+
   intr_set_level (old_level);
 
   /* Add to run queue. */
@@ -721,10 +725,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->effective_priority = priority;
   t->magic = THREAD_MAGIC;
-
-#ifdef USERPROG
-  hash_init (&t->files, file_elem_hash, file_elem_less, NULL);
-#endif
 
   array_init_prio (t->donated_prios);
 
