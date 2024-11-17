@@ -1,6 +1,7 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include "lib/kernel/hash.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
@@ -24,12 +25,12 @@ allocate_fd (void)
   return fd;
 }
 
-/* Returns a hash for file p via allocation of an fd. */
+/* Returns a hash for file p via its fd. */
 unsigned
 file_hash (const struct hash_elem *f_, void *aux UNUSED)
 {
   const struct file_elem *f = hash_entry (f_, struct file_elem, hash_elem);
-  return allocate_fd()
+  return hash_int(f->fd);
 }
 
 /* Returns true if the fd of file a precedes file b. */
@@ -47,10 +48,10 @@ or a null pointer if no such file exists. */
 struct file *
 file_lookup (struct thread *t, const int fd)
 {
-  struct file_elem f;
+  struct file_elem temp;
   struct hash_elem *e;
-  f.fd = fd;
-  e = hash_find (t->files, &f.hash_elem);
+  temp.fd = fd;
+  e = hash_find (t->files, &temp.hash_elem);
   return e != NULL ? hash_entry (e, struct file_elem, hash_elem) : NULL;
 }
 
@@ -97,4 +98,42 @@ syscall_handler (struct intr_frame *f UNUSED)
     printf ("invalid memory address!\n");
     thread_exit ();
   }
+}
+
+/* Closes a file by removing its element from the hash table and freeing it. */
+void
+close (int fd)
+{
+  struct file_elem temp;
+  struct hash_elem *e;
+  temp.fd = fd;
+  e = hash_find (t->files, &temp.hash_elem);
+
+  if (e != NULL) {
+    hash_delete(file_table, e);
+
+    /* Free dynamically allocated file element we've just removed */
+    struct file_elem *fe = hash_entry(e, struct file_elem, hash_elem);
+    free(fe);
+  }
+}
+
+/* Opens a file for a process by adding it to its access hash table. */
+int
+open (const char *file) 
+{
+  struct thread *t = thread_current();
+
+  // TODO: DENY ACCESS WITH FD_ERROR
+  
+  struct file_elem *f = malloc(sizeof(struct file_elem));
+  f->faddr = file;
+  f->fd = allocate_fd();
+  
+  struct hash_elem *res = hash_insert(t->files, &f->hash_elem);
+  if (res != NULL) {
+      free(&f);
+  }
+
+  return f->fd;
 }

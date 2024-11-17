@@ -7,7 +7,7 @@
 
 struct file_elem {
     int fd;
-    file *file_addr;
+    struct file *faddr;
     struct hash_elem hash_elem;
 }
 
