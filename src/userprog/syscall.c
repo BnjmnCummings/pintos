@@ -120,6 +120,18 @@ file_lookup (const int fd)
   return e != NULL ? hash_entry (e, struct file_elem, hash_elem)->faddr : NULL;
 }
 
+/* Creates a new file in the filesystem */
+static void 
+create (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+{
+  const char *name = *(const char *) args[0];
+  unsigned initial_size = *(unsigned *) args[1];
+
+  bool returnStatus = filesys_create(name, initial_size);
+
+  *returnValue = returnStats;
+}
+
 /* Closes a file by removing its element from the hash table and freeing it. */
 static void
 close (int32_t *args, uint32_t *returnValue UNUSED)
@@ -233,10 +245,6 @@ static void exec (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
   return;
 }
 static void wait (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
-static void create (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   return;
 }
