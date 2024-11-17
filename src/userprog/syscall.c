@@ -106,29 +106,32 @@ static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
   shutdown_power_off ();
 }
 
-/* pid exec(const char* comand_line) */
+/* tid_t exec (const char* comand_line) */
 static void exec (int32_t *args, uint32_t *returnValue)
 {
   char *cmd_line = (char *) args[0];
 
+  /* wait for the thread to be scheduled and  initialise the process */
   struct exec_waiter waiter;
   sema_init(&waiter.sema, 0);
-
   tid_t pid = process_execute(cmd_line, &waiter);
   sema_down(&waiter.sema);
 
+  /* return the pid of the new process or -1 for failed initialisation */
   if (waiter.success) {
     *returnValue = pid;
     return;
   }
-
   *returnValue = TID_ERROR;
 }
 
-static void wait (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+/* int wait (tid_t pid) */
+static void wait (int32_t *args, uint32_t *returnValue)
 {
-  return;
+  tid_t pid = args[0];
+  *returnValue = process_wait(pid);
 }
+
 static void create (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   return;
