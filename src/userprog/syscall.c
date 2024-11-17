@@ -137,3 +137,15 @@ open (const char *file)
 
   return f->fd;
 }
+
+/* Changes a file's position based on its fd. */
+void 
+seek (int fd, unsigned position) {
+  struct file *f = file_lookup(fd);
+
+  if (f == NULL) {
+      return;
+  }
+
+  f->pos = position;
+}
