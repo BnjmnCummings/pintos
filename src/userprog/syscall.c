@@ -46,8 +46,9 @@ void *aux UNUSED)
 /* Returns the file pointer associated the given fd,
 or a null pointer if no such file exists. */
 struct file *
-file_lookup (struct thread *t, const int fd)
+file_lookup (const int fd)
 {
+  struct thread *t = thread_current();
   struct file_elem temp;
   struct hash_elem *e;
   temp.fd = fd;
@@ -138,14 +139,25 @@ open (const char *file)
   return f->fd;
 }
 
-/* Changes a file's position based on its fd. */
-void 
+/* Changes a file's read-write position based on its fd. */
+void
 seek (int fd, unsigned position) {
   struct file *f = file_lookup(fd);
 
   if (f == NULL) {
-      return;
+    return;
   }
 
   f->pos = position;
+}
+
+/* Returns the next read-write position of a file. *//
+unsigned
+tell (int fd) 
+{
+  struct file *f = file_lookup(fd);
+
+  ASSERT(f != NULL)
+
+  return f->pos;
 }
