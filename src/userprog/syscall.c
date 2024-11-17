@@ -102,9 +102,11 @@ syscall_handler (struct intr_frame *f UNUSED)
 }
 
 /* Closes a file by removing its element from the hash table and freeing it. */
-void
-close (int fd)
+static void
+close (int32_t *args, uint32_t *returnValue UNUSED)
 {
+  int fd = *(int *) args
+
   struct file_elem temp;
   struct hash_elem *e;
   temp.fd = fd;
@@ -120,9 +122,10 @@ close (int fd)
 }
 
 /* Opens a file for a process by adding it to its access hash table. */
-int
-open (const char *file) 
+static void
+open (int32_t *args, uint32_t *returnValue) 
 {
+  const char *file = (const char *) args;
   struct thread *t = thread_current();
 
   // TODO: DENY ACCESS WITH FD_ERROR
@@ -138,12 +141,16 @@ open (const char *file)
       free(&f);
   }
 
-  return f->fd;
+  *returnValue = f->fd;
 }
 
 /* Changes a file's read-write position based on its fd. */
-void
-seek (int fd, unsigned position) {
+static void
+seek (int32_t *args, uint32_t *returnValue UNUSED)
+{
+  int fd = *(int *) args[0]
+  unsigned position = *(unsigned *) args[1]
+
   struct file *f = file_lookup(fd);
 
   if (f == NULL) {
@@ -154,12 +161,14 @@ seek (int fd, unsigned position) {
 }
 
 /* Returns the next read-write position of a file. *//
-unsigned
-tell (int fd) 
+static void
+tell (int32_t *args, uint32_t *returnValue)
 {
+  int fd = *(int *) args
+
   struct file *f = file_lookup(fd);
 
   ASSERT(f != NULL)
 
-  return f->pos;
+  *returnValue = f->pos;
 }
