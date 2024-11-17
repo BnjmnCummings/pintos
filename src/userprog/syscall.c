@@ -8,6 +8,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/process.h"
 
 /* Lock used by allocate_fd(). */
 static struct lock fd_lock;
@@ -64,7 +65,7 @@ syscall_handler (struct intr_frame *f)
     ASSERT (sys_call_number >= 0);
 
     if (sys_call_number <= SYS_CLOSE) {
-      printf ("System Call Number: %d\n", sys_call_number);
+      // printf ("System Call Number: %d\n", sys_call_number);
 
       /* invoked the handler corresponding to the system call number */
       sys_call_handlers[sys_call_number](++stack_pointer, &f->eax);
@@ -276,8 +277,8 @@ static void
 exit (int32_t *args, uint32_t *return_value UNUSED)
 {
     /* status must be stored somewhere, maybe in thread struct*/
-    struct thread *cur = thread_current ();
-    cur->exit_status = (int) *args;
+    struct child_elem *wait = thread_current ()->wait;
+    thread_current ()->exit_status = wait->exit_status = (int) *args;
     thread_exit ();
 }
 
@@ -369,7 +370,8 @@ static void exec (int32_t *args UNUSED, uint32_t *return_value UNUSED)
 {
   return;
 }
-static void wait (int32_t *args UNUSED, uint32_t *return_value UNUSED)
+static void wait (int32_t *args, uint32_t *return_value)
 {
-  return;
+  tid_t pid = args[0];
+  *return_value = process_wait(pid);
 }

@@ -116,12 +116,25 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     struct hash files;                  /* Hash table of accessible files. */
+    struct child_elem *wait;
     int exit_status;
+    struct hash children;
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+struct child_elem
+{
+   tid_t tid;
+   struct semaphore sema;
+   int exit_status;
+   bool waited;
+   bool dead;
+   struct thread *parent;
+   struct hash_elem hash_elem;
+};
 
 
 /* If false (default), use round-robin scheduler.
@@ -172,5 +185,7 @@ void thread_set_nice (int);
 
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+struct child_elem *child_lookup (const int);
 
 #endif /* threads/thread.h */
