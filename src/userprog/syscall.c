@@ -17,20 +17,20 @@ static struct lock filesys_lock;
 
 static void syscall_handler (struct intr_frame *);
 
-static void write (int32_t *args, uint32_t *returnValue);
-static void exit (int32_t *args, uint32_t *returnValue UNUSED);
+static void write (int32_t *args, uint32_t *return_value);
+static void exit (int32_t *args, uint32_t *return_value UNUSED);
 
-static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void exec (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void wait (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void create (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void remove (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void open (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void filesize (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void read (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void seek (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void tell (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void close (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
+static void halt (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void exec (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void wait (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void create (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void remove (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void open (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void filesize (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void read (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void seek (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void tell (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void close (int32_t *args UNUSED, uint32_t *return_value UNUSED);
 
 static handler sys_call_handlers[19] = {
     halt,                   /* Halt the operating system. */
@@ -124,9 +124,11 @@ file_lookup (const int fd)
   return e != NULL ? hash_entry (e, struct file_elem, hash_elem)->faddr : NULL;
 }
 
-/* Removes a file from the file system given its name. */
+/* Removes a file from the file system given its name. 
+   Input Arguments: const char *file
+   Return Value:    bool representing removal success */
 static void
-remove (int32_t *args, uint32_t *returnValue)
+remove (int32_t *args, uint32_t *return_value)
 {
   const char *name = (const char *) args[0];
 
@@ -134,12 +136,14 @@ remove (int32_t *args, uint32_t *returnValue)
   bool returnStatus = filesys_remove(name);
   lock_release(&filesys_lock);
 
-  *returnValue = returnStatus;
+  *return_value = returnStatus;
 }
 
-/* Creates a new file in the filesystem */
+/* Creates a new file in the filesystem 
+   Input Arguments: const char *file, unsigned initial_size 
+   Return Value:    bool representing creation success */
 static void 
-create (int32_t *args, uint32_t *returnValue)
+create (int32_t *args, uint32_t *return_value)
 {
   const char *name = (const char *) args[0];
   unsigned initial_size = (unsigned) args[1];
@@ -148,12 +152,14 @@ create (int32_t *args, uint32_t *returnValue)
   bool returnStatus = filesys_create(name, initial_size);
   lock_release(&filesys_lock);
 
-  *returnValue = returnStatus;
+  *return_value = returnStatus;
 }
 
-/* Closes a file by removing its element from the hash table and freeing it. */
+/* Closes a file by removing its element from the hash table and freeing it. 
+   Input Arguments: int fd
+   Return Value:    void */
 static void
-close (int32_t *args, uint32_t *returnValue UNUSED)
+close (int32_t *args, uint32_t *return_value UNUSED)
 {
   int fd = (int) args[0];
 
@@ -173,9 +179,11 @@ close (int32_t *args, uint32_t *returnValue UNUSED)
   }
 }
 
-/* Opens a file for a process by adding it to its access hash table. */
+/* Opens a file for a process by adding it to its access hash table. 
+  Input Arguments: const char *file 
+  Return Value:    int representing a file descriptor */
 static void
-open (int32_t *args, uint32_t *returnValue) 
+open (int32_t *args, uint32_t *return_value) 
 {
   const char *file = (const char *) args[0];
   struct thread *t = thread_current();
@@ -186,7 +194,7 @@ open (int32_t *args, uint32_t *returnValue)
 
   /* The failure return value for filesys_open is NULL. */
   if (faddr == NULL) {
-    *returnValue = FD_ERROR;
+    *return_value = FD_ERROR;
     return;
   }
   
@@ -199,12 +207,14 @@ open (int32_t *args, uint32_t *returnValue)
     free(&f);
   }
 
-  *returnValue = f->fd;
+  *return_value = f->fd;
 }
 
-/* Returns the size of the file associated with a given fd. */
+/* Returns the size of the file associated with a given fd. 
+   Input Arguments: int fd
+   Return Value:    int representing file size in bytes */
 static void 
-filesize (int32_t *args, uint32_t *returnValue)
+filesize (int32_t *args, uint32_t *return_value)
 {
   int fd = (int) args[0];
   
@@ -216,13 +226,15 @@ filesize (int32_t *args, uint32_t *returnValue)
     return;
   }
   
-  *returnValue = (unsigned) file_length(f);
+  *return_value = (unsigned) file_length(f);
   lock_release(&filesys_lock);
 }
 
-/* Changes a file's read-write position based on its fd. */
+/* Changes a file's read-write position based on its fd. 
+   Input Arguments: int fd, unsigned position
+   Return Value:    void */
 static void
-seek (int32_t *args, uint32_t *returnValue UNUSED)
+seek (int32_t *args, uint32_t *return_value UNUSED)
 {
   int fd = (int) args[0];
   unsigned position = (unsigned) args[1];
@@ -239,9 +251,11 @@ seek (int32_t *args, uint32_t *returnValue UNUSED)
   lock_release(&filesys_lock);
 }
 
-/* Returns the next read-write position of a file. */
+/* Returns the next read-write position of a file. 
+   Input Arguments: int fd 
+   Return Value:    unsigned representing position of next read-write byte */
 static void
-tell (int32_t *args, uint32_t *returnValue)
+tell (int32_t *args, uint32_t *return_value)
 {
   int fd = (int) args[0];
   
@@ -253,13 +267,13 @@ tell (int32_t *args, uint32_t *returnValue)
     return;
   }
 
-  *returnValue = (unsigned) file_tell(f);
+  *return_value = (unsigned) file_tell(f);
   lock_release(&filesys_lock);
 }
 
 /* void exit (int status) */
 static void 
-exit (int32_t *args, uint32_t *returnValue UNUSED)
+exit (int32_t *args, uint32_t *return_value UNUSED)
 {
     /* status must be stored somewhere, maybe in thread struct*/
     struct thread *cur = thread_current ();
@@ -267,9 +281,11 @@ exit (int32_t *args, uint32_t *returnValue UNUSED)
     thread_exit ();
 }
 
-/* Reads from a file into a buffer. */
+/* Reads from a file into a buffer. 
+   Input Arguments: int fd, void *buffer, unsigned size 
+   Return Value:    int representing actual bytes read */
 static void
-read (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+read (int32_t *args UNUSED, uint32_t *return_value UNUSED)
 {
   int fd = (int) args[0];
   void *buffer = (void *) args[1];
@@ -284,7 +300,7 @@ read (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
       inputs_read++;
     }
 
-    *returnValue = inputs_read;
+    *return_value = inputs_read;
     return;
   }
 
@@ -293,20 +309,22 @@ read (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
   struct file *f = file_lookup(fd);
 
   if (f == NULL) {
-    *returnValue = 0;
+    *return_value = 0;
     lock_release(&filesys_lock);
     return;
   }
 
   off_t amount_read = file_write(f, read, size);
-  *returnValue = (unsigned) amount_read;
+  *return_value = (unsigned) amount_read;
 
   lock_release(&filesys_lock);
 }
 
-/* System write call from a buffer to a file associated with a given fd. */
+/* System write call from a buffer to a file associated with a given fd. 
+   Input Arguments: int fd, const void *buffer, unsigned size 
+   Return Value:    int representing actual bytes written */
 static void 
-write (int32_t *args, uint32_t *returnValue) 
+write (int32_t *args, uint32_t *return_value) 
 {
   int fd = (int) args[0];
   const void *buffer = (void *) args[1];
@@ -323,7 +341,7 @@ write (int32_t *args, uint32_t *returnValue)
       written += block_size;
     }
 
-    *returnValue = size;
+    *return_value = (int) size;
     return;
   }
 
@@ -332,26 +350,26 @@ write (int32_t *args, uint32_t *returnValue)
   struct file *f = file_lookup(fd);
 
   if (f == NULL) {
-    *returnValue = 0;
+    *return_value = 0;
     lock_release(&filesys_lock);
     return;
   }
 
   off_t amount_written = file_write(f, buffer, size);
-  *returnValue = (unsigned) amount_written;
+  *return_value = (int) amount_written;
 
   lock_release(&filesys_lock);
 }
 
-static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+static void halt (int32_t *args UNUSED, uint32_t *return_value UNUSED)
 {
   return;
 }
-static void exec (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+static void exec (int32_t *args UNUSED, uint32_t *return_value UNUSED)
 {
   return;
 }
-static void wait (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+static void wait (int32_t *args UNUSED, uint32_t *return_value UNUSED)
 {
   return;
 }
