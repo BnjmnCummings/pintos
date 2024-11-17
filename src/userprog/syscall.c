@@ -6,6 +6,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "devices/shutdown.h"
+#include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -106,9 +107,17 @@ static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
   shutdown_power_off ();
 }
 
-static void exec (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+static void exec (int32_t *args, uint32_t *returnValue)
 {
-  return;
+  struct exec_waiter waiter;
+  sema_init(&waiter.sema, 0);
+  char *cmd_line = (char *) args;
+
+  tid_t pid = process_execute(cmd_line, &waiter);
+  sema_down(&waiter.sema);
+  if (waiter.success)
+    *returnValue = pid;
+  *returnValue = TID_ERROR;
 }
 static void wait (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {

@@ -18,6 +18,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp, struct stack_entries* args);
@@ -27,7 +28,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp, struct s
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name) 
+process_execute (const char *file_name, struct exec_waiter *waiter) 
 {
   char *fn_copy;
   tid_t tid;
@@ -57,6 +58,7 @@ process_execute (const char *file_name)
   }
   args->argc = i;
   args->fn_copy = fn_copy;
+  args->waiter = waiter;
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (prog_name, PRI_DEFAULT, start_process, args);
@@ -70,7 +72,9 @@ process_execute (const char *file_name)
 static void
 start_process (void *args)
 {
-  char *file_name = ((struct stack_entries*) args)->fn_copy;
+  struct stack_entries *entry = args;
+  struct exec_waiter *waiter = entry->waiter;
+  char *file_name = entry->fn_copy;
   struct intr_frame if_;
   bool success;
 
@@ -79,11 +83,18 @@ start_process (void *args)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp, (struct stack_entries*) args);
+  success = load (file_name, &if_.eip, &if_.esp, entry);
+
+  if (waiter != NULL) {
+    waiter->success = success;
+    sema_up(&waiter->sema);
+  }
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
   free(args);
+
+
   if (!success) 
     thread_exit ();
 
