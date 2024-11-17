@@ -16,6 +16,7 @@
 #include "threads/fixed-point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "userprog/syscall.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -333,6 +334,10 @@ thread_create (const char *name, int priority,
   /* inherit niceness and recent_cpu from current thread */
   t->nice = thread_current ()->nice;
   t->recent_cpu = thread_current ()->recent_cpu;
+
+#ifdef USERPROG
+  hash_init (&t->files, file_elem_hash, file_elem_less, NULL);
+#endif
 
   intr_set_level (old_level);
 
