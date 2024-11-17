@@ -11,6 +11,9 @@
 /* Lock used by allocate_fd(). */
 static struct lock fd_lock;
 
+/* Lock used by system calls using the file system. */
+static struct lock filesys_lock;
+
 static void syscall_handler (struct intr_frame *);
 
 static void write (int32_t *args, uint32_t *returnValue);
@@ -127,7 +130,9 @@ create (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
   const char *name = *(const char *) args[0];
   unsigned initial_size = *(unsigned *) args[1];
 
+  lock_acquire(&filesys_lock);
   bool returnStatus = filesys_create(name, initial_size);
+  lock_release(&filesys_lock);
 
   *returnValue = returnStats;
 }
@@ -163,7 +168,9 @@ open (int32_t *args, uint32_t *returnValue)
 
   // TODO: DENY ACCESS WITH FD_ERROR
 
+  lock_acquire(&filesys_lock);
   struct file *faddr = filesys_open(file);
+  lock_release(&filesys_lock);
   
   struct file_elem *f = malloc(sizeof(struct file_elem));
   f->faddr = faddr;
@@ -184,13 +191,16 @@ seek (int32_t *args, uint32_t *returnValue UNUSED)
   int fd = *(int *) args[0];
   unsigned position = *(unsigned *) args[1];
 
+  lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
 
   if (f == NULL) {
+    lock_release(&filesys_lock);
     return;
   }
 
   file_seek(f, position);
+  lock_release(&filesys_lock);
 }
 
 /* Returns the next read-write position of a file. */
@@ -198,12 +208,17 @@ static void
 tell (int32_t *args, uint32_t *returnValue)
 {
   int fd = *(int *) args;
-
+  
+  lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
 
-  ASSERT(f != NULL)
+  if (f == NULL) {
+    lock_release(&filesys_lock);
+    return;
+  }
 
   *returnValue = file_tell(f);
+  lock_release(&filesys_lock);
 }
 
 /* void exit (int status) */
