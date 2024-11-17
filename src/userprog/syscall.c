@@ -56,7 +56,7 @@ syscall_handler (struct intr_frame *f)
     ASSERT (sys_call_number >= 0);
 
     if (sys_call_number <= SYS_CLOSE) {
-      printf ("System Call! System Call Number: %d\n", sys_call_number);
+      printf ("System Call Number: %d\n", sys_call_number);
 
       /* invoked the handler corresponding to the system call number */
       sys_call_handlers[sys_call_number](++stack_pointer, &f->eax);
@@ -86,7 +86,7 @@ static void write (int32_t *args, uint32_t *returnValue)
   /* arguments */
   int fd = args[0];
   const void *buffer = (void *) args[1];
-  unsigned size = args[3];
+  unsigned size = args[2];
 
   if (fd == 1) {
     enum intr_level old_level = intr_disable ();
