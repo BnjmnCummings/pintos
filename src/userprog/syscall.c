@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -102,8 +103,9 @@ static void write (int32_t *args, uint32_t *returnValue)
 
 static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
-  return;
+  shutdown_power_off ();
 }
+
 static void exec (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
 {
   return;
