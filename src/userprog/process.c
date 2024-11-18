@@ -34,7 +34,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp, struct s
 tid_t
 process_execute (const char *file_name, struct exec_waiter *waiter) 
 {
-  if (strnlen(file_name, PGSIZE) >= PGSIZE)
+  if (strnlen(file_name, PGSIZE) >= PGSIZE - 1)
     return TID_ERROR;
 
   char *fn_copy;
@@ -146,8 +146,10 @@ process_exit (void)
   uint32_t *pd;
   printf ("%s: exit(%d)\n", cur->name, cur->exit_status);
 
-  file_allow_write(cur->open_file);
-  file_close (cur->open_file);
+  if (cur->open_file != NULL) {
+    file_allow_write(cur->open_file);
+    file_close (cur->open_file);
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
