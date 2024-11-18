@@ -218,6 +218,10 @@ buffer_memory_valid (void* buffer, unsigned size) {
     }
     buffer += PAGE_SIZE;
   }
+  buffer += size % PAGE_SIZE;
+  if (!is_user_vaddr(buffer) || pagedir_get_page(thread_current()->pagedir, buffer) == NULL) {
+    return false;
+  }
   return true;
 }
 
