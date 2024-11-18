@@ -34,18 +34,22 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp, struct s
 tid_t
 process_execute (const char *file_name, struct exec_waiter *waiter) 
 {
+  if (strnlen(file_name, PGSIZE) >= PGSIZE)
+    return TID_ERROR;
+
   char *fn_copy;
   tid_t tid;
-
-  char *save_ptr;
-  char *prog_name  = strtok_r((char *) file_name, SPACE_DELIM, (char **) &save_ptr);
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, prog_name, PGSIZE);
+  strlcpy (fn_copy, file_name, PGSIZE);
+
+  char *save_ptr;
+  char *prog_name  = strtok_r((char *) fn_copy, SPACE_DELIM, (char **) &save_ptr);
+
 
   // TODO: put arguments on stack
   // note: strok_r will not return an empty string if we have 2 consecutive delimeters
@@ -125,9 +129,8 @@ int
 process_wait (tid_t child_tid UNUSED) 
 {
   struct child_elem *child = child_lookup(child_tid);
-  if (child == NULL || child->waited == true) {
+  if (child == NULL || child->waited == true)
     return -1;
-  }
   child->waited = true;
   sema_down(&child->sema);
   return child->exit_status;
