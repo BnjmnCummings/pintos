@@ -190,13 +190,13 @@ reset_channel (struct channel *c)
 
   /* Issue soft reset sequence, which selects device 0 as a side effect.
      Also enable interrupts. */
+  c->expecting_interrupt = true;
   outb (reg_ctl (c), 0);
-  timer_usleep (10);
   outb (reg_ctl (c), CTL_SRST);
-  timer_usleep (10);
   outb (reg_ctl (c), 0);
 
-  timer_msleep (150);
+  /* Wait for first interrupt on channel */
+  sema_down (&c->completion_wait);
 
   /* Wait for device 0 to clear BSY. */
   if (present[0]) 
