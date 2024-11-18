@@ -21,6 +21,8 @@ static struct lock fd_lock;
 static struct lock filesys_lock;
 
 static void syscall_handler (struct intr_frame *);
+inline static void validate_pointer (void *ptr);
+static void validate_buffer (void* buffer, unsigned size);
 
 static void write (int32_t *args, uint32_t *return_value);
 static void exit (int32_t *args, uint32_t *return_value UNUSED);
@@ -53,7 +55,7 @@ static handler sys_call_handlers[19] = {
 };
 
 void
-syscall_init (void) 
+syscall_init (void)
 {
   lock_init(&fd_lock);
   lock_init(&filesys_lock);
@@ -61,11 +63,12 @@ syscall_init (void)
 }
 
 static void
-syscall_handler (struct intr_frame *f) 
+syscall_handler (struct intr_frame *f)
 {
   if (is_user_vaddr(f->esp)) {
     int32_t *stack_pointer = (int32_t *) f->esp;
-    int32_t sys_call_number = *stack_pointer;
+    int32_t sys_call_number;
+    get_argument(sys_call_number, stack_pointer, int32_t);
 
     ASSERT (sys_call_number >= 0);
 
@@ -73,7 +76,7 @@ syscall_handler (struct intr_frame *f)
       // printf ("System Call Number: %d\n", sys_call_number);
 
       /* invoked the handler corresponding to the system call number */
-      sys_call_handlers[sys_call_number](++stack_pointer, &f->eax);
+      sys_call_handlers[sys_call_number](stack_pointer, &f->eax);
     } else {
       thread_current()->exit_status = -1;
       thread_exit ();
@@ -87,7 +90,7 @@ syscall_handler (struct intr_frame *f)
 
 /* Returns a file descriptor to use for a new file. */
 static int
-allocate_fd (void) 
+allocate_fd (void)
 {
   static int next_fd = 2;
   int fd;
@@ -135,10 +138,12 @@ file_lookup (const int fd)
 static void
 remove (int32_t *args, uint32_t *return_value)
 {
-  const char *name = (const char *) args[0];
+  char *name;
+  get_argument(name, args, char *);
+  validate_pointer(name);
 
   lock_acquire(&filesys_lock);
-  bool returnStatus = filesys_remove(name);
+  bool returnStatus = filesys_remove((const char *) name);
   lock_release(&filesys_lock);
 
   *return_value = returnStatus;
@@ -146,14 +151,19 @@ remove (int32_t *args, uint32_t *return_value)
 
 /* Creates a new file in the filesystem. */
 /* SIGNATURE: bool create (const char *file, unsigned initial_size) */
-static void 
+static void
 create (int32_t *args, uint32_t *return_value)
 {
-  const char *name = (const char *) args[0];
-  unsigned initial_size = (unsigned) args[1];
+  char *name;
+  unsigned initial_size;
+
+  get_argument(name, args, char *);
+  get_argument(initial_size, args, unsigned);
+
+  validate_pointer(name);
 
   lock_acquire(&filesys_lock);
-  bool returnStatus = filesys_create(name, initial_size);
+  bool returnStatus = filesys_create((const char *) name, initial_size);
   lock_release(&filesys_lock);
 
   *return_value = returnStatus;
@@ -164,7 +174,8 @@ create (int32_t *args, uint32_t *return_value)
 static void
 close (int32_t *args, uint32_t *return_value UNUSED)
 {
-  int fd = (int) args[0];
+  int fd;
+  get_argument(fd, args, int);
 
   struct thread *t = thread_current();
 
@@ -185,13 +196,16 @@ close (int32_t *args, uint32_t *return_value UNUSED)
 /* Opens a file for a process by adding it to its access hash table. */
 /* SIGNATURE: int open (const char *file) */
 static void
-open (int32_t *args, uint32_t *return_value) 
+open (int32_t *args, uint32_t *return_value)
 {
-  const char *file = (const char *) args[0];
+  char *file;
+  get_argument(file, args, char *);
+  validate_pointer(file);
+
   struct thread *t = thread_current();
 
   lock_acquire(&filesys_lock);
-  struct file *faddr = filesys_open(file);
+  struct file *faddr = filesys_open((const char *) file);
   lock_release(&filesys_lock);
 
   /* The failure return value for filesys_open is NULL. */
@@ -199,11 +213,11 @@ open (int32_t *args, uint32_t *return_value)
     *return_value = FD_ERROR;
     return;
   }
-  
+
   struct file_elem *f = malloc(sizeof(struct file_elem));
   f->faddr = faddr;
   f->fd = allocate_fd();
-  
+
   struct hash_elem *res = hash_insert(&t->files, &f->hash_elem);
   if (res != NULL) {
     free(&f);
@@ -212,13 +226,22 @@ open (int32_t *args, uint32_t *return_value)
   *return_value = f->fd;
 }
 
+inline static void
+validate_pointer (void *ptr)
+{
+    if (ptr == NULL || !is_user_vaddr(ptr) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) {
+        exit_thread(INVALID_ARG_ERROR);
+    }
+}
+
 /* Returns the size of the file associated with a given fd. */
 /* SIGNATURE: int filesize (int fd)*/
-static void 
+static void
 filesize (int32_t *args, uint32_t *return_value)
 {
-  int fd = (int) args[0];
-  
+  int fd;
+  get_argument(fd, args, int);
+
   lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
 
@@ -226,7 +249,7 @@ filesize (int32_t *args, uint32_t *return_value)
     lock_release(&filesys_lock);
     return;
   }
-  
+
   *return_value = (unsigned) file_length(f);
   lock_release(&filesys_lock);
 }
@@ -236,8 +259,10 @@ filesize (int32_t *args, uint32_t *return_value)
 static void
 seek (int32_t *args, uint32_t *return_value UNUSED)
 {
-  int fd = (int) args[0];
-  unsigned position = (unsigned) args[1];
+  int fd;
+  unsigned position;
+  get_argument(fd, args, int);
+  get_argument(position, args, unsigned);
 
   lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
@@ -256,8 +281,9 @@ seek (int32_t *args, uint32_t *return_value UNUSED)
 static void
 tell (int32_t *args, uint32_t *return_value)
 {
-  int fd = (int) args[0];
-  
+  int fd;
+  get_argument(fd, args, int);
+
   lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
 
@@ -270,27 +296,54 @@ tell (int32_t *args, uint32_t *return_value)
   lock_release(&filesys_lock);
 }
 
+void exit_thread(int status) {
+    struct thread *cur = thread_current();
+    cur->exit_status = cur->wait->exit_status = status;
+    thread_exit();
+}
+
 /* SIGNATURE: void exit (int status) */
-static void 
+static void
 exit (int32_t *args, uint32_t *return_value UNUSED)
 {
+    int status;
+    get_argument(status, args, int);
     /* status must be stored somewhere, maybe in thread struct*/
-    struct child_elem *wait = thread_current ()->wait;
-    thread_current ()->exit_status = wait->exit_status = (int) args[0];
-    thread_exit ();
+    exit_thread(status);
+}
+
+static void
+validate_buffer (void* buffer, unsigned size) {
+  validate_pointer(buffer);
+  bool valid = true;
+  for (; buffer <= buffer + size - PAGE_SIZE; buffer += PAGE_SIZE) {
+    valid &= (is_user_vaddr(buffer) && (pagedir_get_page(thread_current()->pagedir, buffer) != NULL));
+  }
+  buffer += size % PAGE_SIZE;
+  valid &= (is_user_vaddr(buffer) && (pagedir_get_page(thread_current()->pagedir, buffer) != NULL));
+
+  if (!valid) {
+    exit_thread(INVALID_ARG_ERROR);
+  }
 }
 
 /* SIGNATURE: int write (int fd, const void *buffer, unsigned size) */
 static void
-read (int32_t *args, uint32_t *return_value) 
+read (int32_t *args, uint32_t *return_value)
 {
-  int fd = (int) args[0];
-  void *buffer = (void *) args[1];
-  unsigned size = (unsigned) args[2];
+  int fd;
+  void *buffer;
+  unsigned size;
+
+  get_argument(fd, args, int);
+  get_argument(buffer, args, void *);
+  get_argument(size, args, unsigned );
+
+  validate_buffer(buffer, size);
 
   if (fd == 0) {
     int inputs_read = 0;
-    
+
     uint8_t *input_buffer = (uint8_t *) buffer;
     for (unsigned i = 0; i < size; i++) {
       input_buffer[i] = input_getc();
@@ -302,7 +355,7 @@ read (int32_t *args, uint32_t *return_value)
   }
 
   lock_acquire(&filesys_lock);
-  
+
   struct file *f = file_lookup(fd);
 
   if (f == NULL) {
@@ -319,12 +372,18 @@ read (int32_t *args, uint32_t *return_value)
 
 /* System write call from a buffer to a file associated with a given fd. */
 /* SIGNTATURE: int write (int fd, const void *buffer, unsigned size) */
-static void 
-write (int32_t *args, uint32_t *return_value) 
+static void
+write (int32_t *args, uint32_t *return_value)
 {
-  int fd = (int) args[0];
-  const void *buffer = (void *) args[1];
-  unsigned size = (unsigned) args[2];
+  int fd;
+  void *buffer;
+  unsigned size;
+
+  get_argument(fd, args, int);
+  get_argument(buffer, args, void *);
+  get_argument(size, args, unsigned);
+
+  validate_buffer(buffer, size);
 
   if (fd == 1) {
     /* Only write to stdout by a constant amount of bytes per write */
@@ -333,7 +392,7 @@ write (int32_t *args, uint32_t *return_value)
       unsigned block_size = (size - written > MAX_STDOUT_BUFF_SIZE)
                             ? MAX_STDOUT_BUFF_SIZE
                             : size - written;
-      putbuf((char *)buffer + written, block_size);
+      putbuf((const char *)buffer + written, block_size);
       written += block_size;
     }
 
@@ -342,7 +401,7 @@ write (int32_t *args, uint32_t *return_value)
   }
 
   lock_acquire(&filesys_lock);
-  
+
   struct file *f = file_lookup(fd);
 
   if (f == NULL) {
@@ -358,17 +417,19 @@ write (int32_t *args, uint32_t *return_value)
 }
 
 /* SIGNATURE: void halt (void) */
-static void 
+static void
 halt (int32_t *args UNUSED, uint32_t *return_value UNUSED)
 {
   shutdown_power_off ();
 }
 
 /* SIGNATURE: tid_t exec (const char *cmd_line) */
-static void 
+static void
 exec (int32_t *args, uint32_t *return_value)
 {
-  char *cmd_line = (char *) args[0];
+  char *cmd_line;
+  get_argument(cmd_line, args, char *);
+  validate_pointer(cmd_line);
 
   /* wait for the thread to be scheduled and  initialise the process */
   struct exec_waiter waiter;
@@ -392,6 +453,7 @@ exec (int32_t *args, uint32_t *return_value)
 static void
 wait (int32_t *args, uint32_t *return_value)
 {
-  tid_t pid = args[0];
+  tid_t pid;
+  get_argument(pid, args, tid_t);
   *return_value = process_wait(pid);
 }
