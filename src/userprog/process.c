@@ -1,24 +1,28 @@
-#include "userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
 #include <round.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
+#include "userprog/process.h"
+#include "userprog/syscall.h"
 #include "userprog/tss.h"
+
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
+
 #include "threads/flags.h"
 #include "threads/init.h"
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "threads/malloc.h"
-#include "userprog/syscall.h"
+
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp, struct stack_entries* args);
@@ -120,9 +124,13 @@ start_process (void *args)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  // Temporary infinite loop to avoid "Run didn't produce any output" errors
-  for (;;) {  }
-  return -1;
+  struct child_elem *child = child_lookup(child_tid);
+  if (child == NULL || child->waited == true) {
+    return -1;
+  }
+  child->waited = true;
+  sema_down(&child->sema);
+  return child->exit_status;
 }
 
 /* Free the current process's resources. */
@@ -131,6 +139,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  printf ("%s: exit(%d)\n", cur->name, cur->exit_status);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

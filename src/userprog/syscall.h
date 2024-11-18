@@ -24,7 +24,8 @@ struct exec_waiter {
     bool success;
 };
 
-#define FD_ERROR -1               /* Error value for file descriptors. */
+#define FD_ERROR -1                         /* Error value for file descriptors. */
+#define MAX_STDOUT_BUFF_SIZE 128            /* Maximum buffer size for stdout writes. */
 
 struct file_elem {
     int fd;

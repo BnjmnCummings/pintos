@@ -1,34 +1,40 @@
-#include "userprog/syscall.h"
-#include <stdio.h>
-#include <syscall-nr.h>
 #include <hash.h>
 #include <inttypes.h>
-#include "threads/malloc.h"
+#include <stdio.h>
+#include <syscall-nr.h>
+
+#include "devices/input.h"
+#include "devices/shutdown.h"
+
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "devices/shutdown.h"
+
 #include "userprog/process.h"
+#include "userprog/syscall.h"
 
 /* Lock used by allocate_fd(). */
 static struct lock fd_lock;
 
+/* Lock used by system calls using the file system. */
+static struct lock filesys_lock;
+
 static void syscall_handler (struct intr_frame *);
 
-static void write (int32_t *args, uint32_t *returnValue);
-static void exit (int32_t *args, uint32_t *returnValue UNUSED);
-static void halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void exec (int32_t *args, uint32_t *returnValue);
-static void wait (int32_t *args, uint32_t *returnValue);
-static void open (int32_t *args, uint32_t *returnValue);
-static void seek (int32_t *args, uint32_t *returnValue UNUSED);
-static void tell (int32_t *args, uint32_t *returnValue);
-static void close (int32_t *args, uint32_t *returnValue UNUSED);
-
-static void create (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void filesize (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void remove (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
-static void read (int32_t *args UNUSED, uint32_t *returnValue UNUSED);
+static void write (int32_t *args, uint32_t *return_value);
+static void exit (int32_t *args, uint32_t *return_value UNUSED);
+static void halt (int32_t *args UNUSED, uint32_t *return_value UNUSED);
+static void exec (int32_t *args, uint32_t *return_value);
+static void wait (int32_t *args, uint32_t *return_value);
+static void create (int32_t *args, uint32_t *return_value);
+static void remove (int32_t *args, uint32_t *return_value);
+static void open (int32_t *args, uint32_t *return_value);
+static void filesize (int32_t *args, uint32_t *return_value);
+static void read (int32_t *args, uint32_t *return_value);
+static void seek (int32_t *args, uint32_t *return_value UNUSED);
+static void tell (int32_t *args, uint32_t *return_value);
+static void close (int32_t *args, uint32_t *return_value UNUSED);
 
 static handler sys_call_handlers[19] = {
     halt,                   /* Halt the operating system. */
@@ -49,6 +55,8 @@ static handler sys_call_handlers[19] = {
 void
 syscall_init (void) 
 {
+  lock_init(&fd_lock);
+  lock_init(&filesys_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -62,7 +70,7 @@ syscall_handler (struct intr_frame *f)
     ASSERT (sys_call_number >= 0);
 
     if (sys_call_number <= SYS_CLOSE) {
-      printf ("System Call Number: %d\n", sys_call_number);
+      // printf ("System Call Number: %d\n", sys_call_number);
 
       /* invoked the handler corresponding to the system call number */
       sys_call_handlers[sys_call_number](++stack_pointer, &f->eax);
@@ -122,12 +130,41 @@ file_lookup (const int fd)
   return e != NULL ? hash_entry (e, struct file_elem, hash_elem)->faddr : NULL;
 }
 
+/* Removes a file from the file system given its name. */
+/* SIGNATURE: bool remove (const char *file) */
+static void
+remove (int32_t *args, uint32_t *return_value)
+{
+  const char *name = (const char *) args[0];
+
+  lock_acquire(&filesys_lock);
+  bool returnStatus = filesys_remove(name);
+  lock_release(&filesys_lock);
+
+  *return_value = returnStatus;
+}
+
+/* Creates a new file in the filesystem. */
+/* SIGNATURE: bool create (const char *file, unsigned initial_size) */
+static void 
+create (int32_t *args, uint32_t *return_value)
+{
+  const char *name = (const char *) args[0];
+  unsigned initial_size = (unsigned) args[1];
+
+  lock_acquire(&filesys_lock);
+  bool returnStatus = filesys_create(name, initial_size);
+  lock_release(&filesys_lock);
+
+  *return_value = returnStatus;
+}
+
 /* Closes a file by removing its element from the hash table and freeing it. */
 /* SIGNATURE: void close (int fd) */
 static void
-close (int32_t *args, uint32_t *returnValue UNUSED)
+close (int32_t *args, uint32_t *return_value UNUSED)
 {
-  int fd = *(int *) args[0];
+  int fd = (int) args[0];
 
   struct thread *t = thread_current();
 
@@ -148,14 +185,20 @@ close (int32_t *args, uint32_t *returnValue UNUSED)
 /* Opens a file for a process by adding it to its access hash table. */
 /* SIGNATURE: int open (const char *file) */
 static void
-open (int32_t *args, uint32_t *returnValue) 
+open (int32_t *args, uint32_t *return_value) 
 {
   const char *file = (const char *) args[0];
   struct thread *t = thread_current();
 
-  // TODO: DENY ACCESS WITH FD_ERROR
-
+  lock_acquire(&filesys_lock);
   struct file *faddr = filesys_open(file);
+  lock_release(&filesys_lock);
+
+  /* The failure return value for filesys_open is NULL. */
+  if (faddr == NULL) {
+    *return_value = FD_ERROR;
+    return;
+  }
   
   struct file_elem *f = malloc(sizeof(struct file_elem));
   f->faddr = faddr;
@@ -163,50 +206,77 @@ open (int32_t *args, uint32_t *returnValue)
   
   struct hash_elem *res = hash_insert(&t->files, &f->hash_elem);
   if (res != NULL) {
-      free(&f);
+    free(&f);
   }
 
-  *returnValue = f->fd;
+  *return_value = f->fd;
+}
+
+/* Returns the size of the file associated with a given fd. */
+/* SIGNATURE: int filesize (int fd)*/
+static void 
+filesize (int32_t *args, uint32_t *return_value)
+{
+  int fd = (int) args[0];
+  
+  lock_acquire(&filesys_lock);
+  struct file *f = file_lookup(fd);
+
+  if (f == NULL) {
+    lock_release(&filesys_lock);
+    return;
+  }
+  
+  *return_value = (unsigned) file_length(f);
+  lock_release(&filesys_lock);
 }
 
 /* Changes a file's read-write position based on its fd. */
 /* SIGNATURE: void seek (int fd, unsigned position) */
 static void
-seek (int32_t *args, uint32_t *returnValue UNUSED)
+seek (int32_t *args, uint32_t *return_value UNUSED)
 {
-  int fd = *(int *) args[0];
-  unsigned position = *(unsigned *) args[1];
+  int fd = (int) args[0];
+  unsigned position = (unsigned) args[1];
 
+  lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
 
   if (f == NULL) {
+    lock_release(&filesys_lock);
     return;
   }
 
   file_seek(f, position);
+  lock_release(&filesys_lock);
 }
 
 /* Returns the next read-write position of a file. */
 /* SIGNATURE: unsigned tell (int fd) */
 static void
-tell (int32_t *args, uint32_t *returnValue)
+tell (int32_t *args, uint32_t *return_value)
 {
-  int fd = *(int *) args[0];
-
+  int fd = (int) args[0];
+  
+  lock_acquire(&filesys_lock);
   struct file *f = file_lookup(fd);
 
-  ASSERT(f != NULL)
+  if (f == NULL) {
+    lock_release(&filesys_lock);
+    return;
+  }
 
-  *returnValue = file_tell(f);
+  *return_value = (unsigned) file_tell(f);
+  lock_release(&filesys_lock);
 }
 
 /* SIGNATURE: void exit (int status) */
 static void 
-exit (int32_t *args, uint32_t *returnValue UNUSED)
+exit (int32_t *args, uint32_t *return_value UNUSED)
 {
     /* status must be stored somewhere, maybe in thread struct*/
-    struct thread *cur = thread_current ();
-    cur->exit_status = (int) args[0];
+    struct child_elem *wait = thread_current ()->wait;
+    thread_current ()->exit_status = wait->exit_status = (int) args[0];
     thread_exit ();
 }
 
@@ -226,36 +296,92 @@ buffer_memory_valid (void* buffer, unsigned size) {
 }
 
 /* SIGNATURE: int write (int fd, const void *buffer, unsigned size) */
-static void 
-write (int32_t *args, uint32_t *returnValue) 
+static void
+read (int32_t *args, uint32_t *return_value) 
 {
-  /* arguments */
-  int fd = args[0];
-  const void *buffer = (void *) args[1];
-  unsigned size = args[2];
+  int fd = (int) args[0];
+  void *buffer = (void *) args[1];
+  unsigned size = (unsigned) args[2];
 
-  if (fd == 1) {
-    enum intr_level old_level = intr_disable ();
-    putbuf (buffer, size);
-    intr_set_level (old_level);
-    /* putbuf () is guaranteed to successfully print 'size' bytes to console*/
-    *returnValue = size;
+  if (fd == 0) {
+    int inputs_read = 0;
+    
+    uint8_t *input_buffer = (uint8_t *) buffer;
+    for (unsigned i = 0; i < size; i++) {
+      input_buffer[i] = input_getc();
+      inputs_read++;
+    }
+
+    *return_value = inputs_read;
     return;
   }
-  //todo get file path from fd
-  *returnValue = 0;
+
+  lock_acquire(&filesys_lock);
+  
+  struct file *f = file_lookup(fd);
+
+  if (f == NULL) {
+    *return_value = 0;
+    lock_release(&filesys_lock);
+    return;
+  }
+
+  off_t amount_read = file_write(f, read, size);
+  *return_value = (unsigned) amount_read;
+
+  lock_release(&filesys_lock);
+}
+
+/* System write call from a buffer to a file associated with a given fd. */
+/* SIGNTATURE: int write (int fd, const void *buffer, unsigned size) */
+static void 
+write (int32_t *args, uint32_t *return_value) 
+{
+  int fd = (int) args[0];
+  const void *buffer = (void *) args[1];
+  unsigned size = (unsigned) args[2];
+
+  if (fd == 1) {
+    /* Only write to stdout by a constant amount of bytes per write */
+    unsigned written = 0;
+    while (written < size) {
+      unsigned block_size = (size - written > MAX_STDOUT_BUFF_SIZE)
+                            ? MAX_STDOUT_BUFF_SIZE
+                            : size - written;
+      putbuf((char *)buffer + written, block_size);
+      written += block_size;
+    }
+
+    *return_value = (int) size;
+    return;
+  }
+
+  lock_acquire(&filesys_lock);
+  
+  struct file *f = file_lookup(fd);
+
+  if (f == NULL) {
+    *return_value = 0;
+    lock_release(&filesys_lock);
+    return;
+  }
+
+  off_t amount_written = file_write(f, buffer, size);
+  *return_value = (int) amount_written;
+
+  lock_release(&filesys_lock);
 }
 
 /* SIGNATURE: void halt (void) */
 static void 
-halt (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
+halt (int32_t *args UNUSED, uint32_t *return_value UNUSED)
 {
   shutdown_power_off ();
 }
 
-/* SIGNATURE: tid_t exec (const char* comand_line) */
+/* SIGNATURE: tid_t exec (const char *cmd_line) */
 static void 
-exec (int32_t *args, uint32_t *returnValue)
+exec (int32_t *args, uint32_t *return_value)
 {
   char *cmd_line = (char *) args[0];
 
@@ -267,33 +393,16 @@ exec (int32_t *args, uint32_t *returnValue)
 
   /* return the pid of the new process or -1 for failed initialisation */
   if (waiter.success) {
-    *returnValue = pid;
+    *return_value = pid;
     return;
   }
-  *returnValue = TID_ERROR;
+  *return_value = TID_ERROR;
 }
 
 /* SIGNATURE: int wait (tid_t pid) */
-static void 
-wait (int32_t *args, uint32_t *returnValue)
+static void
+wait (int32_t *args, uint32_t *return_value)
 {
   tid_t pid = args[0];
-  *returnValue = process_wait(pid);
-}
-
-static void create (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
-static void remove (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
-static void filesize (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
-}
-static void read (int32_t *args UNUSED, uint32_t *returnValue UNUSED)
-{
-  return;
+  *return_value = process_wait(pid);
 }
