@@ -8,7 +8,6 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "userprog/process.h"
 
 /* Lock used by allocate_fd(). */
 static struct lock fd_lock;
@@ -180,12 +179,12 @@ close (int32_t *args, uint32_t *return_value UNUSED)
   }
 }
 
-/* Opens a file for a process by adding it to its access hash table. 
-  Input Arguments: const char *file 
-  Return Value:    int representing a file descriptor */
+/* Opens a file for a process by adding it to its access hash table. */
+/* SIGNATURE: int open (const char *file) */
 static void
 open (int32_t *args, uint32_t *return_value) 
 {
+  const char *file = (const char *) args[0];
   const char *file = (const char *) args[0];
   struct thread *t = thread_current();
 
@@ -231,9 +230,8 @@ filesize (int32_t *args, uint32_t *return_value)
   lock_release(&filesys_lock);
 }
 
-/* Changes a file's read-write position based on its fd. 
-   Input Arguments: int fd, unsigned position
-   Return Value:    void */
+/* Changes a file's read-write position based on its fd. */
+/* SIGNATURE: void seek (int fd, unsigned position) */
 static void
 seek (int32_t *args, uint32_t *return_value UNUSED)
 {
@@ -252,9 +250,8 @@ seek (int32_t *args, uint32_t *return_value UNUSED)
   lock_release(&filesys_lock);
 }
 
-/* Returns the next read-write position of a file. 
-   Input Arguments: int fd 
-   Return Value:    unsigned representing position of next read-write byte */
+/* Returns the next read-write position of a file. */
+/* SIGNATURE: unsigned tell (int fd) */
 static void
 tell (int32_t *args, uint32_t *return_value)
 {
@@ -272,7 +269,7 @@ tell (int32_t *args, uint32_t *return_value)
   lock_release(&filesys_lock);
 }
 
-/* void exit (int status) */
+/* SIGNATURE: void exit (int status) */
 static void 
 exit (int32_t *args, uint32_t *return_value UNUSED)
 {
@@ -282,11 +279,8 @@ exit (int32_t *args, uint32_t *return_value UNUSED)
     thread_exit ();
 }
 
-/* Reads from a file into a buffer. 
-   Input Arguments: int fd, void *buffer, unsigned size 
-   Return Value:    int representing actual bytes read */
-static void
-read (int32_t *args UNUSED, uint32_t *return_value UNUSED)
+/* int write (int fd, const void *buffer, unsigned size) */
+static void write (int32_t *args, uint32_t *return_value) 
 {
   int fd = (int) args[0];
   void *buffer = (void *) args[1];
@@ -362,14 +356,32 @@ write (int32_t *args, uint32_t *return_value)
   lock_release(&filesys_lock);
 }
 
-static void halt (int32_t *args UNUSED, uint32_t *return_value UNUSED)
+/* SIGNATURE: void halt (void) */
+static void 
+halt (int32_t *args UNUSED, uint32_t *return_value UNUSED)
 {
-  return;
+  shutdown_power_off ();
 }
-static void exec (int32_t *args UNUSED, uint32_t *return_value UNUSED)
+
+static void 
+exec (int32_t *args, uint32_t *return_value)
 {
-  return;
+  char *cmd_line = (char *) args[0];
+
+  /* wait for the thread to be scheduled and  initialise the process */
+  struct exec_waiter waiter;
+  sema_init(&waiter.sema, 0);
+  tid_t pid = process_execute(cmd_line, &waiter);
+  sema_down(&waiter.sema);
+
+  /* return the pid of the new process or -1 for failed initialisation */
+  if (waiter.success) {
+    *return_value = pid;
+    return;
+  }
+  *return_value = TID_ERROR;
 }
+
 static void wait (int32_t *args, uint32_t *return_value)
 {
   tid_t pid = args[0];

@@ -4,6 +4,13 @@
 #include "filesys/filesys.h"
 #include <hash.h>
 #include <inttypes.h>
+#include <stdbool.h>
+#include "threads/synch.h"
+
+struct exec_waiter {
+    struct semaphore sema;
+    bool success;
+};
 
 #define FD_ERROR -1                         /* Error value for file descriptors. */
 #define MAX_STDOUT_BUFF_SIZE 128            /* Maximum buffer size for stdout writes. */
@@ -17,8 +24,8 @@ struct file_elem {
 unsigned file_elem_hash (const struct hash_elem *, void *aux);
 bool file_elem_less (const struct hash_elem *, const struct hash_elem *, void *aux);
 struct file *file_lookup (const int);
-
 void syscall_init (void);
+
 typedef void (*handler) (int32_t *, uint32_t *);
 
 #endif /* userprog/syscall.h */
