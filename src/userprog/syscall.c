@@ -311,7 +311,7 @@ read (int32_t *args, uint32_t *return_value)
     return;
   }
 
-  off_t amount_read = file_write(f, read, size);
+  off_t amount_read = file_read(f, buffer, size);
   *return_value = (unsigned) amount_read;
 
   lock_release(&filesys_lock);
