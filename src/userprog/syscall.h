@@ -11,21 +11,22 @@
 
 #define PAGE_SIZE 0x1000
 
+#define FD_ERROR -1                         /* Error value for file descriptors. */
+#define INVALID_ARG_ERROR -1                  /* Error value for null pointers in file handlers */
+#define MAX_STDOUT_BUFF_SIZE 128            /* Maximum buffer size for stdout writes. */
+
 #define get_argument(var_name, arg_ptr, type) \
 ({ \
     if ((void*) arg_ptr == NULL || !is_user_vaddr((const void*) arg_ptr) || pagedir_get_page(thread_current()->pagedir, (void*) arg_ptr) == NULL) { \
-        thread_exit(); \
+        exit_thread(INVALID_ARG_ERROR); \
     } \
-    var_name = (type) (arg_ptr); \
+    var_name = *(type *) (arg_ptr++); \
 })
 
 struct exec_waiter {
     struct semaphore sema;
     bool success;
 };
-
-#define FD_ERROR -1                         /* Error value for file descriptors. */
-#define MAX_STDOUT_BUFF_SIZE 128            /* Maximum buffer size for stdout writes. */
 
 struct file_elem {
     int fd;
@@ -37,6 +38,7 @@ unsigned file_elem_hash (const struct hash_elem *, void *aux);
 bool file_elem_less (const struct hash_elem *, const struct hash_elem *, void *aux);
 struct file *file_lookup (const int);
 void syscall_init (void);
+void exit_thread (int);
 
 typedef void (*handler) (int32_t *, uint32_t *);
 

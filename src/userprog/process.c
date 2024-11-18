@@ -41,7 +41,7 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
+     Otherwise, there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
@@ -50,13 +50,9 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
   char *save_ptr;
   char *prog_name  = strtok_r((char *) fn_copy, SPACE_DELIM, (char **) &save_ptr);
 
-
-  // TODO: put arguments on stack
-  // note: strok_r will not return an empty string if we have 2 consecutive delimeters
   struct stack_entries* args = malloc(sizeof(struct stack_entries));
-  if (args == NULL) { 
-    ASSERT(false);
-  }
+  ASSERT(args != NULL);
+
   int i = 0;
   char* argument = prog_name;
   for (; argument != NULL; argument = strtok_r(NULL, SPACE_DELIM, (char **) &save_ptr)) {
