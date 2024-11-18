@@ -59,6 +59,8 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
     //deal with arguments?
     args->argv[i] = argument;
     i++;
+    if (i > MAX_ARGUMENTS)
+      return TID_ERROR;
   }
   args->argc = i;
   args->fn_copy = fn_copy;
