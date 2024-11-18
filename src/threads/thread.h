@@ -119,6 +119,7 @@ struct thread
     struct child_elem *wait;
     int exit_status;
     struct hash children;
+    struct file *open_file;
 #endif
 
     /* Owned by thread.c. */
