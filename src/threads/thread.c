@@ -345,6 +345,10 @@ thread_create (const char *name, int priority,
   hash_init (&t->files, file_elem_hash, file_elem_less, NULL);
   hash_init (&t->children, child_elem_hash, child_elem_less, NULL);
   t->wait = malloc(sizeof (struct child_elem));
+  if (t->wait == NULL) {
+    thread_current()->exit_status = -1;
+    thread_exit();
+  }
   sema_init(&t->wait->sema, 0);
   t->wait->dead = false;
   t->wait->waited = false;

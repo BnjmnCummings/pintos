@@ -103,8 +103,10 @@ start_process (void *args)
   free(args);
 
 
-  if (!success) 
+  if (!success) {
+    thread_current()->exit_status = -1;
     thread_exit ();
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in

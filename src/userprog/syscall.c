@@ -75,7 +75,7 @@ syscall_handler (struct intr_frame *f)
       /* invoked the handler corresponding to the system call number */
       sys_call_handlers[sys_call_number](++stack_pointer, &f->eax);
     } else {
-      printf ("Unsupported System Call\n");
+      thread_current()->exit_status = -1;
       thread_exit ();
     }
 
@@ -374,6 +374,10 @@ exec (int32_t *args, uint32_t *return_value)
   struct exec_waiter waiter;
   sema_init(&waiter.sema, 0);
   tid_t pid = process_execute(cmd_line, &waiter);
+  if (pid == TID_ERROR) {
+    *return_value = TID_ERROR;
+    return;
+  }
   sema_down(&waiter.sema);
 
   /* return the pid of the new process or -1 for failed initialisation */
