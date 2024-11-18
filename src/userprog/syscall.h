@@ -9,7 +9,7 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 
-#define PAGE_SIZE 0x1000
+#define PAGE_SIZE 0x1000 /* 4KB */
 
 #define FD_ERROR -1                         /* Error value for file descriptors. */
 #define INVALID_ARG_ERROR -1                  /* Error value for null pointers in file handlers */

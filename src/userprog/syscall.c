@@ -22,6 +22,7 @@ static struct lock filesys_lock;
 
 static void syscall_handler (struct intr_frame *);
 inline static void validate_pointer (void *ptr);
+static void validate_buffer (void* buffer, unsigned size);
 
 static void write (int32_t *args, uint32_t *return_value);
 static void exit (int32_t *args, uint32_t *return_value UNUSED);
@@ -311,19 +312,19 @@ exit (int32_t *args, uint32_t *return_value UNUSED)
     exit_thread(status);
 }
 
-static bool
-buffer_memory_valid (void* buffer, unsigned size) {
-  for (unsigned i = 0; i <= size / PAGE_SIZE; i++) {
-    if (!is_user_vaddr(buffer) || pagedir_get_page(thread_current()->pagedir, buffer) == NULL) {
-      return false;
-    }
-    buffer += PAGE_SIZE;
+static void
+validate_buffer (void* buffer, unsigned size) {
+  validate_pointer(buffer);
+  bool valid = true;
+  for (; buffer <= buffer + size - PAGE_SIZE; buffer += PAGE_SIZE) {
+    valid &= (is_user_vaddr(buffer) && (pagedir_get_page(thread_current()->pagedir, buffer) != NULL));
   }
   buffer += size % PAGE_SIZE;
-  if (!is_user_vaddr(buffer) || pagedir_get_page(thread_current()->pagedir, buffer) == NULL) {
-    return false;
+  valid &= (is_user_vaddr(buffer) && (pagedir_get_page(thread_current()->pagedir, buffer) != NULL));
+
+  if (!valid) {
+    exit_thread(INVALID_ARG_ERROR);
   }
-  return true;
 }
 
 /* SIGNATURE: int write (int fd, const void *buffer, unsigned size) */
@@ -338,7 +339,7 @@ read (int32_t *args, uint32_t *return_value)
   get_argument(buffer, args, void *);
   get_argument(size, args, unsigned );
 
-  validate_pointer(buffer);
+  validate_buffer(buffer, size);
 
   if (fd == 0) {
     int inputs_read = 0;
@@ -382,7 +383,7 @@ write (int32_t *args, uint32_t *return_value)
   get_argument(buffer, args, void *);
   get_argument(size, args, unsigned);
 
-  validate_pointer(buffer);
+  validate_buffer(buffer, size);
 
   if (fd == 1) {
     /* Only write to stdout by a constant amount of bytes per write */
