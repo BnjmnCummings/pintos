@@ -14,6 +14,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "threads/fixed-point.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/syscall.h"
@@ -87,6 +88,9 @@ static int mlfq_highest_priority (void);
 static bool mlfq_is_empty (void);
 static void mlfq_insert (struct thread *t);
 
+static unsigned child_elem_hash (const struct hash_elem *, void * UNUSED);
+static bool child_elem_less (const struct hash_elem *, const struct hash_elem *, void * UNUSED);
+static void free_children (struct hash_elem *, void * UNUSED);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -137,6 +141,7 @@ thread_init (void)
 void
 thread_start (void) 
 {
+  hash_init (&thread_current()->children, child_elem_hash, child_elem_less, NULL);
   /* Create the idle thread. */
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
@@ -336,7 +341,18 @@ thread_create (const char *name, int priority,
   t->recent_cpu = thread_current ()->recent_cpu;
 
 #ifdef USERPROG
-  hash_init (&t->files, file_elem_hash, file_elem_less, NULL);
+  if (strcmp(t->name, "idle") != 0) {
+    hash_init (&t->files, file_elem_hash, file_elem_less, NULL);
+    hash_init (&t->children, child_elem_hash, child_elem_less, NULL);
+    t->wait = malloc(sizeof (struct child_elem));
+    sema_init(&t->wait->sema, 0);
+    t->wait->dead = false;
+    t->wait->waited = false;
+    t->wait->tid = t->tid;
+    t->wait->parent = thread_current ();
+
+    hash_insert(&thread_current ()->children, &t->wait->hash_elem);
+  }
 #endif
 
   intr_set_level (old_level);
@@ -346,6 +362,33 @@ thread_create (const char *name, int priority,
   check_prio (t->priority);
 
   return tid;
+}
+
+struct child_elem *
+child_lookup (const int tid)
+{
+  struct thread *t = thread_current();
+  struct child_elem temp;
+  struct hash_elem *e;
+  temp.tid = tid;
+  e = hash_find (&t->children, &temp.hash_elem);
+  return e != NULL ? hash_entry (e, struct child_elem, hash_elem) : NULL;
+}
+
+static unsigned
+child_elem_hash (const struct hash_elem *f_, void *aux UNUSED)
+{
+  const struct child_elem *f = hash_entry (f_, struct child_elem, hash_elem);
+  return hash_int(f->tid);
+}
+
+static bool
+child_elem_less (const struct hash_elem *a_, const struct hash_elem *b_,
+void *aux UNUSED)
+{
+  const struct child_elem *a = hash_entry (a_, struct child_elem, hash_elem);
+  const struct child_elem *b = hash_entry (b_, struct child_elem, hash_elem);
+  return a->tid < b->tid;
 }
 
 /* If new priority is higher than current thread, yield CPU */
@@ -466,6 +509,15 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
   // TODO: handle exit status before destroying thread
+  struct thread *cur = thread_current ();
+  if (cur->wait->dead) {
+    hash_delete(&cur->wait->parent->children, &cur->wait->hash_elem);
+    free(cur->wait);
+  } else {
+    cur->wait->dead = true;
+  }
+  hash_apply(&cur->children, free_children);
+  sema_up(&cur->wait->sema);
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
@@ -477,6 +529,18 @@ thread_exit (void)
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
+}
+
+static void
+free_children (struct hash_elem *e, void *aux UNUSED)
+{
+  struct child_elem *a = hash_entry (e, struct child_elem, hash_elem);
+  if (a->dead) {
+    hash_delete(&thread_current()->children, e);
+    free(a);
+  } else {
+    a->dead = true;
+  }
 }
 
 /* Yields the CPU.  The current thread is not put to sleep and

@@ -120,9 +120,13 @@ start_process (void *args)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  // Temporary infinite loop to avoid "Run didn't produce any output" errors
-  for (;;) {  }
-  return -1;
+  struct child_elem *child = child_lookup(child_tid);
+  if (child == NULL || child->waited == true) {
+    return -1;
+  }
+  child->waited = true;
+  sema_down(&child->sema);
+  return child->exit_status;
 }
 
 /* Free the current process's resources. */
@@ -131,6 +135,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  printf ("%s: exit(%d)\n", cur->name, cur->exit_status);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
