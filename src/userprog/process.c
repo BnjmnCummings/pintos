@@ -144,6 +144,9 @@ process_exit (void)
   uint32_t *pd;
   printf ("%s: exit(%d)\n", cur->name, cur->exit_status);
 
+  file_allow_write(cur->open_file);
+  file_close (cur->open_file);
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -354,11 +357,13 @@ load (const char *file_name, void (**eip) (void), void **esp, struct stack_entri
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
+  file_deny_write(file);
+  t->open_file = file;
+
   success = true;
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
   return success;
 }
 
