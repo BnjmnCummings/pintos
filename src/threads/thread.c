@@ -142,6 +142,7 @@ void
 thread_start (void) 
 {
   hash_init (&thread_current()->children, child_elem_hash, child_elem_less, NULL);
+  
   /* Create the idle thread. */
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
@@ -341,18 +342,20 @@ thread_create (const char *name, int priority,
   t->recent_cpu = thread_current ()->recent_cpu;
 
 #ifdef USERPROG
-  if (strcmp(t->name, "idle") != 0) {
-    hash_init (&t->files, file_elem_hash, file_elem_less, NULL);
-    hash_init (&t->children, child_elem_hash, child_elem_less, NULL);
-    t->wait = malloc(sizeof (struct child_elem));
-    sema_init(&t->wait->sema, 0);
-    t->wait->dead = false;
-    t->wait->waited = false;
-    t->wait->tid = t->tid;
-    t->wait->parent = thread_current ();
-
-    hash_insert(&thread_current ()->children, &t->wait->hash_elem);
+  hash_init (&t->files, file_elem_hash, file_elem_less, NULL);
+  hash_init (&t->children, child_elem_hash, child_elem_less, NULL);
+  t->wait = malloc(sizeof (struct child_elem));
+  if (t->wait == NULL) {
+    thread_current()->exit_status = -1;
+    thread_exit();
   }
+  sema_init(&t->wait->sema, 0);
+  t->wait->dead = false;
+  t->wait->waited = false;
+  t->wait->tid = t->tid;
+  t->wait->parent = thread_current ();
+
+  hash_insert(&thread_current ()->children, &t->wait->hash_elem);
 #endif
 
   intr_set_level (old_level);

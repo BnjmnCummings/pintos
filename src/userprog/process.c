@@ -34,18 +34,22 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp, struct s
 tid_t
 process_execute (const char *file_name, struct exec_waiter *waiter) 
 {
+  if (strnlen(file_name, PGSIZE) >= PGSIZE - 1)
+    return TID_ERROR;
+
   char *fn_copy;
   tid_t tid;
-
-  char *save_ptr;
-  char *prog_name  = strtok_r((char *) file_name, SPACE_DELIM, (char **) &save_ptr);
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, prog_name, PGSIZE);
+  strlcpy (fn_copy, file_name, PGSIZE);
+
+  char *save_ptr;
+  char *prog_name  = strtok_r((char *) fn_copy, SPACE_DELIM, (char **) &save_ptr);
+
 
   // TODO: put arguments on stack
   // note: strok_r will not return an empty string if we have 2 consecutive delimeters
@@ -99,8 +103,10 @@ start_process (void *args)
   free(args);
 
 
-  if (!success) 
+  if (!success) {
+    thread_current()->exit_status = -1;
     thread_exit ();
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -125,9 +131,8 @@ int
 process_wait (tid_t child_tid UNUSED) 
 {
   struct child_elem *child = child_lookup(child_tid);
-  if (child == NULL || child->waited == true) {
+  if (child == NULL || child->waited == true)
     return -1;
-  }
   child->waited = true;
   sema_down(&child->sema);
   return child->exit_status;
@@ -140,6 +145,11 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
   printf ("%s: exit(%d)\n", cur->name, cur->exit_status);
+
+  if (cur->open_file != NULL) {
+    file_allow_write(cur->open_file);
+    file_close (cur->open_file);
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -351,11 +361,13 @@ load (const char *file_name, void (**eip) (void), void **esp, struct stack_entri
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
+  file_deny_write(file);
+  t->open_file = file;
+
   success = true;
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
   return success;
 }
 
