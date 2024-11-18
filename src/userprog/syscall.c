@@ -210,6 +210,17 @@ exit (int32_t *args, uint32_t *returnValue UNUSED)
     thread_exit ();
 }
 
+static bool
+buffer_memory_valid (void* buffer, unsigned size) {
+  for (unsigned i = 0; i <= size / PAGE_SIZE; i++) {
+    if (!is_user_vaddr(buffer) || pagedir_get_page(thread_current()->pagedir, buffer) == NULL) {
+      return false;
+    }
+    buffer += PAGE_SIZE;
+  }
+  return true;
+}
+
 /* SIGNATURE: int write (int fd, const void *buffer, unsigned size) */
 static void 
 write (int32_t *args, uint32_t *returnValue) 

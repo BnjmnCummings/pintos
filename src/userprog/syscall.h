@@ -9,6 +9,8 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 
+#define PAGE_SIZE 0x1000
+
 #define get_argument(var_name, arg_ptr, type) \
 ({ \
     if ((void*) arg_ptr == NULL || !is_user_vaddr((const void*) arg_ptr) || pagedir_get_page(thread_current()->pagedir, (void*) arg_ptr) == NULL) { \
