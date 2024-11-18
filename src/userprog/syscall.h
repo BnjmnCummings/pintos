@@ -15,6 +15,8 @@
 #define INVALID_ARG_ERROR -1                  /* Error value for null pointers in file handlers */
 #define MAX_STDOUT_BUFF_SIZE 128            /* Maximum buffer size for stdout writes. */
 
+/* Checks if a pointer to an argument can be accessed by the user, if so assigns it to a variable,
+   otherwise terminates the user process.  */
 #define get_argument(var_name, arg_ptr, type) \
 ({ \
     if ((void*) arg_ptr == NULL || !is_user_vaddr((const void*) arg_ptr) || pagedir_get_page(thread_current()->pagedir, (void*) arg_ptr) == NULL) { \
