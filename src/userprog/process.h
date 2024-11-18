@@ -23,7 +23,7 @@
 /* Stores the arguments needed to initalise a user process stack */
 struct stack_entries 
 {
-    char* argv[10]; /* Size of array is the maximum number of arguments a program is expected to get */
+    char* argv[30]; /* Size of array is the maximum number of arguments a program is expected to get */
     int    argc;     /* Actual number of arguments */
     char*  fn_copy;  /* Used in given implementation */
     struct exec_waiter *waiter;
