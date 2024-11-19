@@ -120,14 +120,6 @@ void *aux UNUSED)
   return a->fd < b->fd;
 }
 
-/* Frees a file given its hash_elem.*/
-static void
-free_file (struct hash_elem *e, void *aux UNUSED)
-{
-  struct file_elem *f = hash_entry (e, struct file_elem, hash_elem);
-  free(f);
-}
-
 /* Returns the file pointer associated the given fd,
 or a null pointer if no such file exists. */
 struct file *
@@ -307,7 +299,6 @@ tell (int32_t *args, uint32_t *return_value)
 void exit_thread(int status) {
     struct thread *cur = thread_current();
     cur->exit_status = cur->wait->exit_status = status;
-    hash_clear(&cur->files, &free_file);
     thread_exit();
 }
 
@@ -321,10 +312,10 @@ exit (int32_t *args, uint32_t *return_value UNUSED)
     exit_thread(status);
 }
 
-/* Checks if a multipage buffer can be safely accessed by the user, 
+/* Checks if a multipage buffer can be safely accessed by the user,
    if not terminates the user process                             */
 static void
-validate_buffer (void* buffer, unsigned size) 
+validate_buffer (void* buffer, unsigned size)
 {
   validate_pointer(buffer);
 

@@ -91,6 +91,7 @@ static void mlfq_insert (struct thread *t);
 static unsigned child_elem_hash (const struct hash_elem *, void * UNUSED);
 static bool child_elem_less (const struct hash_elem *, const struct hash_elem *, void * UNUSED);
 static void free_children (struct hash_elem *, void * UNUSED);
+static void free_file (struct hash_elem *, void * UNUSED);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -142,7 +143,8 @@ void
 thread_start (void) 
 {
   hash_init (&thread_current()->children, child_elem_hash, child_elem_less, NULL);
-  
+  hash_init (&thread_current()->files, file_elem_hash, file_elem_less, NULL);
+
   /* Create the idle thread. */
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
@@ -511,15 +513,14 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
-  // TODO: handle exit status before destroying thread
   struct thread *cur = thread_current ();
   if (cur->wait->dead) {
-    hash_delete(&cur->wait->parent->children, &cur->wait->hash_elem);
     free(cur->wait);
   } else {
     cur->wait->dead = true;
   }
-  hash_apply(&cur->children, free_children);
+  hash_destroy(&cur->children, free_children);
+  hash_destroy(&cur->files, &free_file);
   sema_up(&cur->wait->sema);
 #endif
 
@@ -534,12 +535,19 @@ thread_exit (void)
   NOT_REACHED ();
 }
 
+/* Frees a file given its hash_elem.*/
+static void
+free_file (struct hash_elem *e, void *aux UNUSED)
+{
+  struct file_elem *f = hash_entry (e, struct file_elem, hash_elem);
+  free(f);
+}
+
 static void
 free_children (struct hash_elem *e, void *aux UNUSED)
 {
   struct child_elem *a = hash_entry (e, struct child_elem, hash_elem);
   if (a->dead) {
-    hash_delete(&thread_current()->children, e);
     free(a);
   } else {
     a->dead = true;
