@@ -18,6 +18,7 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/syscall.h"
+#include "filesys/file.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -540,6 +541,7 @@ static void
 free_file (struct hash_elem *e, void *aux UNUSED)
 {
   struct file_elem *f = hash_entry (e, struct file_elem, hash_elem);
+  file_close(f->faddr);
   free(f);
 }
 

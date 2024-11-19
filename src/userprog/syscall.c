@@ -189,6 +189,7 @@ close (int32_t *args, uint32_t *return_value UNUSED)
 
     /* Free dynamically allocated file element we've just removed */
     struct file_elem *fe = hash_entry(e, struct file_elem, hash_elem);
+    file_close(fe->faddr);
     free(fe);
   }
 }
