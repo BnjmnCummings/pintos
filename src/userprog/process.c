@@ -34,8 +34,6 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp, struct s
 tid_t
 process_execute (const char *file_name, struct exec_waiter *waiter) 
 {
-  if (strnlen(file_name, PGSIZE) >= PGSIZE - 1)
-    return TID_ERROR;
 
   char *fn_copy;
   tid_t tid;
@@ -68,8 +66,10 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (prog_name, PRI_DEFAULT, start_process, args);
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+  if (tid == TID_ERROR) {
+    palloc_free_page (fn_copy);
+    free(args);
+  }
   return tid;
 }
 
@@ -91,15 +91,16 @@ start_process (void *args)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, entry);
 
-  if (waiter != NULL) {
-    waiter->success = success;
-    sema_up(&waiter->sema);
-  }
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
   free(args);
 
+
+  if (waiter != NULL) {
+    waiter->success = success;
+    sema_up(&waiter->sema);
+  }
 
   if (!success) {
     exit_thread(-1);
