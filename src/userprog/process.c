@@ -102,8 +102,7 @@ start_process (void *args)
 
 
   if (!success) {
-    thread_current()->exit_status = -1;
-    thread_exit ();
+    exit_thread(-1);
   }
 
   /* Start the user process by simulating a return from an
@@ -145,7 +144,6 @@ process_exit (void)
   printf ("%s: exit(%d)\n", cur->name, cur->exit_status);
 
   if (cur->open_file != NULL) {
-    file_allow_write(cur->open_file);
     file_close (cur->open_file);
   }
 
@@ -514,7 +512,7 @@ setup_stack (void **esp, struct stack_entries* args)
         *final_addr = DEC_ESP_BY_BYTES(*(final_addr), sizeof(void*) * (args->argc + 4));
 
         if ((unsigned) *final_addr <= PAGE_LOWEST_ADRESS) {
-          thread_exit ();
+          return false;
         }
 
         /* Push argument strings onto the stack */
