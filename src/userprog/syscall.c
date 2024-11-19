@@ -321,15 +321,18 @@ exit (int32_t *args, uint32_t *return_value UNUSED)
     exit_thread(status);
 }
 
+/* Checks if a multipage buffer can be safely accessed by the user, 
+   if not terminates the user process                             */
 static void
-validate_buffer (void* buffer, unsigned size) {
+validate_buffer (void* buffer, unsigned size) 
+{
   validate_pointer(buffer);
+
   bool valid = true;
-  for (; buffer <= buffer + size - PAGE_SIZE; buffer += PAGE_SIZE) {
-    valid &= (is_user_vaddr(buffer) && (pagedir_get_page(thread_current()->pagedir, buffer) != NULL));
+  for (void* tmp = buffer; tmp <= buffer + size - PAGE_SIZE; tmp += PAGE_SIZE) {
+    valid &= (is_user_vaddr(tmp) && (pagedir_get_page(thread_current()->pagedir, tmp) != NULL));
   }
-  buffer += size % PAGE_SIZE;
-  valid &= (is_user_vaddr(buffer) && (pagedir_get_page(thread_current()->pagedir, buffer) != NULL));
+  valid &= (is_user_vaddr(buffer+size) && (pagedir_get_page(thread_current()->pagedir, buffer+size) != NULL));
 
   if (!valid) {
     exit_thread(INVALID_ARG_ERROR);
