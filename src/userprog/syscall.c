@@ -300,6 +300,10 @@ tell (int32_t *args, uint32_t *return_value)
 void exit_thread(int status) {
     struct thread *cur = thread_current();
     cur->exit_status = cur->wait->exit_status = status;
+    if (lock_held_by_current_thread(&fd_lock))
+      lock_release(&fd_lock);
+    if (lock_held_by_current_thread(&filesys_lock))
+      lock_release(&filesys_lock);
     thread_exit();
 }
 
