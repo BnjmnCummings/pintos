@@ -34,8 +34,6 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp, struct s
 tid_t
 process_execute (const char *file_name, struct exec_waiter *waiter) 
 {
-  if (strnlen(file_name, PGSIZE) >= PGSIZE - 1)
-    return TID_ERROR;
 
   char *fn_copy;
   tid_t tid;
@@ -59,6 +57,8 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
     //deal with arguments?
     args->argv[i] = argument;
     i++;
+    if (i > MAX_ARGUMENTS)
+      return TID_ERROR;
   }
   args->argc = i;
   args->fn_copy = fn_copy;
@@ -66,8 +66,10 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (prog_name, PRI_DEFAULT, start_process, args);
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+  if (tid == TID_ERROR) {
+    palloc_free_page (fn_copy);
+    free(args);
+  }
   return tid;
 }
 
@@ -89,19 +91,19 @@ start_process (void *args)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, entry);
 
-  if (waiter != NULL) {
-    waiter->success = success;
-    sema_up(&waiter->sema);
-  }
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
   free(args);
 
 
+  if (waiter != NULL) {
+    waiter->success = success;
+    sema_up(&waiter->sema);
+  }
+
   if (!success) {
-    thread_current()->exit_status = -1;
-    thread_exit ();
+    exit_thread(-1);
   }
 
   /* Start the user process by simulating a return from an
@@ -143,7 +145,6 @@ process_exit (void)
   printf ("%s: exit(%d)\n", cur->name, cur->exit_status);
 
   if (cur->open_file != NULL) {
-    file_allow_write(cur->open_file);
     file_close (cur->open_file);
   }
 
@@ -512,7 +513,7 @@ setup_stack (void **esp, struct stack_entries* args)
         *final_addr = DEC_ESP_BY_BYTES(*(final_addr), sizeof(void*) * (args->argc + 4));
 
         if ((unsigned) *final_addr <= PAGE_LOWEST_ADRESS) {
-          thread_exit ();
+          return false;
         }
 
         /* Push argument strings onto the stack */

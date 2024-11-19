@@ -189,6 +189,7 @@ close (int32_t *args, uint32_t *return_value UNUSED)
 
     /* Free dynamically allocated file element we've just removed */
     struct file_elem *fe = hash_entry(e, struct file_elem, hash_elem);
+    file_close(fe->faddr);
     free(fe);
   }
 }
@@ -220,7 +221,7 @@ open (int32_t *args, uint32_t *return_value)
 
   struct hash_elem *res = hash_insert(&t->files, &f->hash_elem);
   if (res != NULL) {
-    free(&f);
+    free(f);
   }
 
   *return_value = f->fd;
@@ -299,6 +300,10 @@ tell (int32_t *args, uint32_t *return_value)
 void exit_thread(int status) {
     struct thread *cur = thread_current();
     cur->exit_status = cur->wait->exit_status = status;
+    if (lock_held_by_current_thread(&fd_lock))
+      lock_release(&fd_lock);
+    if (lock_held_by_current_thread(&filesys_lock))
+      lock_release(&filesys_lock);
     thread_exit();
 }
 
@@ -312,10 +317,10 @@ exit (int32_t *args, uint32_t *return_value UNUSED)
     exit_thread(status);
 }
 
-/* Checks if a multipage buffer can be safely accessed by the user, 
+/* Checks if a multipage buffer can be safely accessed by the user,
    if not terminates the user process                             */
 static void
-validate_buffer (void* buffer, unsigned size) 
+validate_buffer (void* buffer, unsigned size)
 {
   validate_pointer(buffer);
 

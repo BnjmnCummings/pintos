@@ -7,6 +7,8 @@
 
 #define PAGE_LOWEST_ADRESS 0xBFFFF000 /* PHYS_BASE - 4KB */
 
+#define MAX_ARGUMENTS 30
+
 /* Uses type conversion to decrement provided void* pointer by a given number of bytes */
 #define DEC_ESP_BY_BYTES(esp, num) ((void *) ((uint8_t *) (esp) - (num)))
 
@@ -23,7 +25,7 @@
 /* Stores the arguments needed to initalise a user process stack */
 struct stack_entries 
 {
-    char* argv[30]; /* Size of array is the maximum number of arguments a program is expected to get */
+    char* argv[MAX_ARGUMENTS]; /* Size of array is the maximum number of arguments a program is expected to get */
     int    argc;     /* Actual number of arguments */
     char*  fn_copy;  /* Used in given implementation */
     struct exec_waiter *waiter;
