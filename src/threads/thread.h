@@ -103,7 +103,7 @@ struct thread
     int effective_priority;             /* Max of base priority and donations */
     int priority;                       /* Priority. */
     struct donated_prio* donated_prios[2*MAX_DONATIONS]; /* Queue of donated priorities */
-    struct lock* donated_lock;         /* Records the lock held by the donee */
+    struct lock* donated_lock;          /* Records the lock held by the donee */
     int nice;                           /* Niceness. */
     int32_t recent_cpu;                 /* Thread recent CPU usage. */
     struct list_elem allelem;           /* List element for all threads list. */
@@ -111,15 +111,14 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     struct hash files;                  /* Hash table of accessible files. */
-    struct child_elem *wait;
-    int exit_status;
-    struct hash children;
-    struct file *open_file;
+    struct child_elem *as_child;        /* Child hash element for this thread's parent. */
+    int exit_status;                    /* Return exit status. */
+    struct hash children;               /* Hash table of child threads. */
+    struct file *open_file;             /* Currently open file. */
 #endif
 
     /* Owned by thread.c. */
@@ -128,13 +127,13 @@ struct thread
 
 struct child_elem
 {
-   tid_t tid;
-   struct semaphore sema;
-   int exit_status;
-   bool waited;
-   bool dead;
-   struct thread *parent;
-   struct hash_elem hash_elem;
+   tid_t tid;                       /* Child's thread identifier. */
+   struct semaphore sema;           /* Semaphore for parent-child syncronization. */
+   int exit_status;                 /* Return exit status. */
+   bool waited;                     /* True if child has called process_wait(). */
+   bool dead;                       /* True if child thread has been killed. */
+   struct thread *parent;           /* Pointer to the thread's parent. */
+   struct hash_elem hash_elem;      /* Hash table element. */
 };
 
 

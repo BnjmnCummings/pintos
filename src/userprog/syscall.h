@@ -12,7 +12,8 @@
 #define PAGE_SIZE 0x1000 /* 4KB */
 
 #define FD_ERROR -1                         /* Error value for file descriptors. */
-#define INVALID_ARG_ERROR -1                  /* Error value for null pointers in file handlers */
+#define FD_START 2                          /* Starting file descriptor to be allocated. */
+#define INVALID_ARG_ERROR -1                /* Error value for null pointers in file handlers */
 #define MAX_STDOUT_BUFF_SIZE 128            /* Maximum buffer size for stdout writes. */
 
 /* Checks if a pointer to an argument can be accessed by the user, if so assigns it to a variable,
@@ -20,28 +21,30 @@
 #define get_argument(var_name, arg_ptr, type) \
 ({ \
     if ((void*) arg_ptr == NULL || !is_user_vaddr((const void*) arg_ptr) || pagedir_get_page(thread_current()->pagedir, (void*) arg_ptr) == NULL) { \
-        exit_thread(INVALID_ARG_ERROR); \
+        thread_exit_safe(INVALID_ARG_ERROR); \
     } \
     var_name = *(type *) (arg_ptr++); \
 })
 
-struct exec_waiter {
-    struct semaphore sema;
-    bool success;
+typedef void (*handler) (int32_t *, uint32_t *);
+
+struct exec_waiter 
+{
+    struct semaphore sema;         /*  */
+    bool success;                  /* Return status for executable. */
 };
 
-struct file_elem {
-    int fd;
-    struct file *faddr;
-    struct hash_elem hash_elem;
+struct file_elem 
+{
+    int fd;                        /* Unique file descriptor. */
+    struct file *faddr;            /* File pointer. */
+    struct hash_elem hash_elem;    /* Hash table element. */
 };
 
 unsigned file_elem_hash (const struct hash_elem *, void *aux);
 bool file_elem_less (const struct hash_elem *, const struct hash_elem *, void *aux);
 struct file *file_lookup (const int);
 void syscall_init (void);
-void exit_thread (int);
-
-typedef void (*handler) (int32_t *, uint32_t *);
+void thread_exit_safe (int);
 
 #endif /* userprog/syscall.h */

@@ -23,7 +23,6 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp, struct stack_entries* args);
 
@@ -103,7 +102,7 @@ start_process (void *args)
   }
 
   if (!success) {
-    exit_thread(-1);
+    thread_exit_safe(-1);
   }
 
   /* Start the user process by simulating a return from an
@@ -126,7 +125,7 @@ start_process (void *args)
  * This function will be implemented in task 2.
  * For now, it does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
   struct child_elem *child = child_lookup(child_tid);
   if (child == NULL || child->waited == true)
@@ -531,6 +530,7 @@ setup_stack (void **esp, struct stack_entries* args)
         for (int i = args->argc; i >= 0; i--) {
           stack_push_element(esp, arg_pointers[i], char*);
         }
+
         /* Push argv, argc, and dummy return address*/
         void* argv = *esp;
         stack_push_element(esp, argv, char**);
@@ -541,6 +541,7 @@ setup_stack (void **esp, struct stack_entries* args)
         palloc_free_page (kpage);
       }
     }
+
   return success;
 }
 

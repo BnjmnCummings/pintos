@@ -68,9 +68,9 @@ syscall_handler (struct intr_frame *f)
   if (is_user_vaddr(f->esp)) {
     int32_t *stack_pointer = (int32_t *) f->esp;
     int32_t sys_call_number;
-    get_argument(sys_call_number, stack_pointer, int32_t);
+    get_argument (sys_call_number, stack_pointer, int32_t);
 
-    ASSERT (sys_call_number >= 0);
+    ASSERT (sys_call_number >= SYS_HALT);
 
     if (sys_call_number <= SYS_CLOSE) {
       // printf ("System Call Number: %d\n", sys_call_number);
@@ -92,7 +92,7 @@ syscall_handler (struct intr_frame *f)
 static int
 allocate_fd (void)
 {
-  static int next_fd = 2;
+  static int next_fd = FD_START;
   int fd;
 
   lock_acquire (&fd_lock);
@@ -230,9 +230,9 @@ open (int32_t *args, uint32_t *return_value)
 inline static void
 validate_pointer (void *ptr)
 {
-    if (ptr == NULL || !is_user_vaddr(ptr) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) {
-        exit_thread(INVALID_ARG_ERROR);
-    }
+  if (ptr == NULL || !is_user_vaddr(ptr) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) {
+    thread_exit_safe(INVALID_ARG_ERROR);
+  }
 }
 
 /* Returns the size of the file associated with a given fd. */
@@ -297,24 +297,28 @@ tell (int32_t *args, uint32_t *return_value)
   lock_release(&filesys_lock);
 }
 
-void exit_thread(int status) {
-    struct thread *cur = thread_current();
-    cur->exit_status = cur->wait->exit_status = status;
-    if (lock_held_by_current_thread(&fd_lock))
-      lock_release(&fd_lock);
-    if (lock_held_by_current_thread(&filesys_lock))
-      lock_release(&filesys_lock);
-    thread_exit();
+/* Safely exits a thread by releasing its userprog locks and
+   also returning its exit status. */
+void thread_exit_safe(int status) {
+  struct thread *cur = thread_current();
+  cur->exit_status = cur->as_child->exit_status = status;
+
+  if (lock_held_by_current_thread(&fd_lock))
+    lock_release(&fd_lock);
+  if (lock_held_by_current_thread(&filesys_lock))
+    lock_release(&filesys_lock);
+
+  thread_exit();
 }
 
 /* SIGNATURE: void exit (int status) */
 static void
 exit (int32_t *args, uint32_t *return_value UNUSED)
 {
-    int status;
-    get_argument(status, args, int);
-    /* status must be stored somewhere, maybe in thread struct*/
-    exit_thread(status);
+  int status;
+  get_argument(status, args, int);
+  /* status must be stored somewhere, maybe in thread struct*/
+  thread_exit_safe(status);
 }
 
 /* Checks if a multipage buffer can be safely accessed by the user,
@@ -331,7 +335,7 @@ validate_buffer (void* buffer, unsigned size)
   valid &= (is_user_vaddr(buffer+size) && (pagedir_get_page(thread_current()->pagedir, buffer+size) != NULL));
 
   if (!valid) {
-    exit_thread(INVALID_ARG_ERROR);
+    thread_exit_safe(INVALID_ARG_ERROR);
   }
 }
 
@@ -349,7 +353,7 @@ read (int32_t *args, uint32_t *return_value)
 
   validate_buffer(buffer, size);
 
-  if (fd == 0) {
+  if (fd == STDIN_FILENO) {
     int inputs_read = 0;
 
     uint8_t *input_buffer = (uint8_t *) buffer;
@@ -379,7 +383,7 @@ read (int32_t *args, uint32_t *return_value)
 }
 
 /* System write call from a buffer to a file associated with a given fd. */
-/* SIGNTATURE: int write (int fd, const void *buffer, unsigned size) */
+/* SIGNATURE: int write (int fd, const void *buffer, unsigned size) */
 static void
 write (int32_t *args, uint32_t *return_value)
 {
@@ -393,7 +397,7 @@ write (int32_t *args, uint32_t *return_value)
 
   validate_buffer(buffer, size);
 
-  if (fd == 1) {
+  if (fd == STDOUT_FILENO) {
     /* Only write to stdout by a constant amount of bytes per write */
     unsigned written = 0;
     while (written < size) {
