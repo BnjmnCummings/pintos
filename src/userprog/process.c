@@ -510,7 +510,9 @@ setup_stack (void **esp, struct stack_entries* args)
         for (int i = 0; i < args->argc; i++) {
           *final_addr = DEC_ESP_BY_BYTES(*(final_addr), strlen((args->argv[i]))+1);
         }
-        *final_addr = DEC_ESP_BY_BYTES(*(final_addr), sizeof(void*) * (args->argc + 4));
+        *esp = FOUR_BYTE_ALLIGN_STACK_POINTER(esp);
+        *final_addr = DEC_ESP_BY_BYTES(*(final_addr),
+                                       sizeof(char*) * (args->argc) + sizeof(char**) + sizeof(int) + sizeof(void*));
 
         if ((unsigned) *final_addr <= PAGE_LOWEST_ADRESS) {
           return false;
@@ -524,8 +526,7 @@ setup_stack (void **esp, struct stack_entries* args)
           arg_pointers[i] = *esp;
         }
 
-        /* Round down to the nearest 4 bytes */
-        *esp = (void *)((uintptr_t)*esp & ~0x3);
+        *esp = FOUR_BYTE_ALLIGN_STACK_POINTER(esp);;
 
         /* Push pointers to arguments onto the stack */
         for (int i = args->argc; i >= 0; i--) {
