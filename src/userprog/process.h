@@ -9,10 +9,10 @@
 
 #define MAX_ARGUMENTS 30              /* Maximum number of arguments allowed to be passed. */
 
-#define FOUR_BYTE_ALLIGN_STACK_POINTER(esp) ((void *) ((uintptr_t)*(esp) & ~0x3))
+#define FOUR_BYTE_ALLIGN_STACK_POINTER(esp) ((void *) ((unsigned long)*(esp) & ~0x3))
 
 /* Uses type conversion to decrement provided void* pointer by a given number of bytes */
-#define DEC_ESP_BY_BYTES(esp, num) ((void *) ((uint8_t *) (esp) - (num)))
+#define DEC_ESP_BY_BYTES(esp, num) ((void *) ((unsigned long) (esp) - (num)))
 
 #define check_for_stack_overflow(esp) ({ \
     if ((unsigned long) (esp) <= FIRST_ADDRESS_UNDER_STACK_PAGE) {      \
