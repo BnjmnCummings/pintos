@@ -349,9 +349,8 @@ thread_create (const char *name, int priority,
   hash_init (&t->children, child_elem_hash, child_elem_less, NULL);
   t->as_child = malloc(sizeof (struct child_elem));
 
-  if (t->as_child == NULL) {
-    thread_exit_safe(-1);
-  }
+  if (t->as_child == NULL)
+    return TID_ERROR;
   
   sema_init(&t->as_child->sema, 0);
   t->as_child->dead = false;
