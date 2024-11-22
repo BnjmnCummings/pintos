@@ -25,7 +25,9 @@
     var_name = *(type *) (arg_ptr++);         \
 })
 
-typedef void (*handler) (int32_t *, uint32_t *);
+typedef uint32_t stack_arg;
+
+typedef void (*handler) (stack_arg *, stack_arg *);
 
 struct exec_waiter
 {
