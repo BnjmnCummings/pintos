@@ -69,21 +69,16 @@ syscall_handler (struct intr_frame *f)
     int32_t sys_call_number;
     get_argument (sys_call_number, stack_pointer, int32_t);
 
-    ASSERT (sys_call_number >= SYS_HALT);
-
-    if (sys_call_number <= SYS_CLOSE) {
-      // printf ("System Call Number: %d\n", sys_call_number);
-
+    if (sys_call_number <= SYS_CLOSE && sys_call_number >= SYS_HALT) {
       /* invoked the handler corresponding to the system call number */
       sys_call_handlers[sys_call_number](stack_pointer, &f->eax);
     } else {
-      thread_current()->exit_status = -1;
-      thread_exit ();
+      thread_exit_safe(-1);
     }
 
   } else {
     printf ("invalid memory address!\n");
-    thread_exit ();
+    thread_exit_safe(-1);
   }
 }
 
