@@ -39,7 +39,7 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
 
   /* Make a copy of FILE_NAME.
      Otherwise, there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
+  fn_copy = palloc_get_page (PAL_ZERO);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
@@ -53,6 +53,7 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
     return TID_ERROR;
   }
 
+  /* Break the prog_name into separate arguments and add them to argv. */
   int i = 0;
   char* argument = prog_name;
   for (; argument != NULL; argument = strtok_r(NULL, SPACE_DELIM, (char **) &save_ptr)) {
@@ -107,7 +108,7 @@ start_process (void *args)
 
   /* If load failed, quit. */
   if (!success) {
-    thread_exit_safe(-1);
+    thread_exit_safe(LOAD_FAILURE);
   }
 
   /* Start the user process by simulating a return from an

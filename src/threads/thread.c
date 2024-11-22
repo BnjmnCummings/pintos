@@ -518,6 +518,7 @@ thread_exit (void)
   struct thread *cur = thread_current ();
 
   intr_disable ();
+
   /* If parent is dead free the child_elem, otherwise sema_up to tell parent it has died */
   if (cur->as_child->dead) {
     free(cur->as_child);
@@ -541,7 +542,7 @@ thread_exit (void)
   NOT_REACHED ();
 }
 
-/* Frees a file given its hash_elem.*/
+/* Frees a file given its hash_elem. */
 static void
 free_file (struct hash_elem *e, void *aux UNUSED)
 {
@@ -550,6 +551,7 @@ free_file (struct hash_elem *e, void *aux UNUSED)
   free(f);
 }
 
+/* Frees child_elem if needed, or sets dead to true. */
 static void
 free_children (struct hash_elem *e, void *aux UNUSED)
 {

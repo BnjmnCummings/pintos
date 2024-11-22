@@ -13,10 +13,11 @@
 
 #define PAGE_SIZE 0x1000 /* 4KB */
 
+#define SYSCALL_ERROR -1                    /* Error value for syscall problems. */
 #define FD_ERROR -1                         /* Error value for file descriptors. */
 #define FD_START 2                          /* Starting file descriptor to be allocated. */
-#define INVALID_ARG_ERROR -1                /* Error value for null pointers in file handlers */
 #define MAX_STDOUT_BUFF_SIZE 128            /* Maximum buffer size for stdout writes. */
+#define NUM_SYSCALLS 19                     /* Number of system calls. */
 
 /* Stores the next argument on the stack into the provided variable */
 #define get_argument(var_name, arg_ptr, type) \
@@ -53,7 +54,7 @@ inline static void
 validate_pointer (void *ptr)
 {
   if (ptr == NULL || !is_user_vaddr(ptr) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) {
-    thread_exit_safe(INVALID_ARG_ERROR);
+    thread_exit_safe(SYSCALL_ERROR);
   }
 }
 

@@ -9,6 +9,8 @@
 
 #define MAX_ARGUMENTS 30              /* Maximum number of arguments allowed to be passed. */
 
+#define LOAD_FAILURE -1
+
 #define FOUR_BYTE_ALLIGN_STACK_POINTER(esp) ((void *) ((uintptr_t)*(esp) & ~0x3))
 
 /* Uses type conversion to decrement provided void* pointer by a given number of bytes */

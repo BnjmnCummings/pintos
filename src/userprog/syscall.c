@@ -37,7 +37,7 @@ static void seek (stack_arg *args, stack_arg *return_value UNUSED);
 static void tell (stack_arg *args, stack_arg *return_value);
 static void close (stack_arg *args, stack_arg *return_value UNUSED);
 
-static handler sys_call_handlers[19] = {
+static handler sys_call_handlers[NUM_SYSCALLS] = {
     halt,                   /* Halt the operating system. */
     exit,                   /* Terminate this process. */
     exec,                   /* Start another process. */
@@ -70,15 +70,15 @@ syscall_handler (struct intr_frame *f)
     get_argument (sys_call_number, stack_pointer, stack_arg);
 
     if (sys_call_number <= SYS_CLOSE) {
-      /* invoked the handler corresponding to the system call number */
+      /* Invoked the handler corresponding to the system call number */
       sys_call_handlers[sys_call_number](stack_pointer, &f->eax);
     } else {
-      thread_exit_safe(-1);
+      thread_exit_safe(SYSCALL_ERROR);
     }
 
   } else {
     printf ("invalid memory address!\n");
-    thread_exit_safe(-1);
+    thread_exit_safe(SYSCALL_ERROR);
   }
 }
 
@@ -334,6 +334,7 @@ read (stack_arg *args, stack_arg *return_value)
 
   validate_buffer(buffer, size);
 
+  /* Read */
   if (fd == STDIN_FILENO) {
     int inputs_read = 0;
 
@@ -424,7 +425,7 @@ exec (stack_arg *args, stack_arg *return_value)
   get_argument(cmd_line, args, char *);
   validate_pointer(cmd_line);
 
-  /* wait for the thread to be scheduled and  initialise the process */
+  /* Wait for the thread to be scheduled and initialise the process. */
   struct exec_waiter waiter;
   sema_init(&waiter.sema, 0);
   tid_t pid = process_execute(cmd_line, &waiter);
@@ -434,7 +435,7 @@ exec (stack_arg *args, stack_arg *return_value)
   }
   sema_down(&waiter.sema);
 
-  /* return the pid of the new process or -1 for failed initialisation */
+  /* Return the pid of the new process or TID_ERROR for failed initialisation. */
   if (!waiter.success) {
     *return_value = TID_ERROR;
   }
