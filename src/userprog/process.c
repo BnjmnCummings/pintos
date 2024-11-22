@@ -53,7 +53,6 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
   int i = 0;
   char* argument = prog_name;
   for (; argument != NULL; argument = strtok_r(NULL, SPACE_DELIM, (char **) &save_ptr)) {
-    //deal with arguments?
     args->argv[i] = argument;
     i++;
     if (i > MAX_ARGUMENTS)
@@ -503,19 +502,6 @@ setup_stack (void **esp, struct stack_entries* args)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
         *esp = PHYS_BASE;
-
-        /* Check if the arguments will overflow the stack */
-        void** final_addr = esp; 
-        for (int i = 0; i < args->argc; i++) {
-          *final_addr = DEC_ESP_BY_BYTES(*(final_addr), strlen((args->argv[i]))+1);
-        }
-        *esp = FOUR_BYTE_ALLIGN_STACK_POINTER(esp);
-        *final_addr = DEC_ESP_BY_BYTES(*(final_addr),
-                                       sizeof(char*) * (args->argc) + sizeof(char**) + sizeof(int) + sizeof(void*));
-
-        if ((unsigned) *final_addr <= PAGE_LOWEST_ADRESS) {
-          return false;
-        }
 
         /* Push argument strings onto the stack */
         void* arg_pointers[args->argc+1];
