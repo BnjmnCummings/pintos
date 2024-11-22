@@ -65,10 +65,13 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (prog_name, PRI_DEFAULT, start_process, args);
+
+  /* Ensure dynamically allocated data is freed is thread_create fails. */
   if (tid == TID_ERROR) {
     palloc_free_page (fn_copy);
     free(args);
   }
+
   return tid;
 }
 
@@ -90,17 +93,17 @@ start_process (void *args)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, entry);
 
-
-  /* If load failed, quit. */
+  /* Free all dynamically allocated data. */
   palloc_free_page (file_name);
   free(args);
 
-
+  /* If a parent is waiting, set the load status and wake the thread. */
   if (waiter != NULL) {
     waiter->success = success;
     sema_up(&waiter->sema);
   }
 
+  /* If load failed, quit. */
   if (!success) {
     thread_exit_safe(-1);
   }

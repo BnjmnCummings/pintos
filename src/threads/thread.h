@@ -128,7 +128,7 @@ struct thread
 struct child_elem
 {
    tid_t tid;                       /* Child's thread identifier. */
-   struct semaphore sema;           /* Semaphore for parent-child syncronization. */
+   struct semaphore sema;           /* Semaphore for parent-child synchronization. */
    int exit_status;                 /* Return exit status. */
    bool waited;                     /* True if child has called process_wait(). */
    bool dead;                       /* True if child thread has been killed. */

@@ -313,7 +313,7 @@ exit (int32_t *args, uint32_t *return_value UNUSED)
 }
 
 /* Checks if a multipage buffer can be safely accessed by the user,
-   if not terminates the user process                             */
+   if not terminates the user process.                            */
 static void
 validate_buffer (void* buffer, unsigned size)
 {
@@ -326,7 +326,7 @@ validate_buffer (void* buffer, unsigned size)
   validate_pointer(end - 1);
 }
 
-/* SIGNATURE: int write (int fd, const void *buffer, unsigned size) */
+/* SIGNATURE: int read (int fd, const void *buffer, unsigned size) */
 static void
 read (int32_t *args, uint32_t *return_value)
 {
