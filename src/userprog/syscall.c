@@ -309,13 +309,13 @@ exit (stack_arg *args, stack_arg *return_value UNUSED)
 /* Checks if a multipage buffer can be safely accessed by the user,
    if not terminates the user process.                            */
 static void
-validate_buffer (void* buffer, unsigned size)
+validate_buffer (void *buffer, unsigned size)
 {
   validate_pointer(buffer);
 
-  void* end  = buffer + size;
-  for (void* tmp = buffer; tmp < end; tmp += PAGE_SIZE) {
-    validate_pointer(tmp);
+  void *end = buffer + size;
+  for (void *cur_ptr = buffer; cur_ptr < end; cur_ptr += PAGE_SIZE) {
+    validate_pointer(cur_ptr);
   }
   validate_pointer(end - 1);
 }

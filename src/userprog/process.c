@@ -56,7 +56,6 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
   int i = 0;
   char* argument = prog_name;
   for (; argument != NULL; argument = strtok_r(NULL, SPACE_DELIM, (char **) &save_ptr)) {
-    //deal with arguments?
     args->argv[i] = argument;
     i++;
     if (i > MAX_ARGUMENTS)
@@ -135,7 +134,7 @@ process_wait (tid_t child_tid)
 {
   struct child_elem *child = child_lookup(child_tid);
   if (child == NULL || child->waited == true)
-    return -1;
+    return TID_ERROR;
   child->waited = true;
   sema_down(&child->sema);
   return child->exit_status;
