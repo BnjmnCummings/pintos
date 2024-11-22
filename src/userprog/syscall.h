@@ -8,6 +8,7 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
+#include "threads/vaddr.h"
 
 #define PAGE_SIZE 0x1000 /* 4KB */
 
@@ -15,14 +16,11 @@
 #define INVALID_ARG_ERROR -1                  /* Error value for null pointers in file handlers */
 #define MAX_STDOUT_BUFF_SIZE 128            /* Maximum buffer size for stdout writes. */
 
-/* Checks if a pointer to an argument can be accessed by the user, if so assigns it to a variable,
-   otherwise terminates the user process.  */
+/* Stores the next argument on the stack into the provided variable */
 #define get_argument(var_name, arg_ptr, type) \
 ({ \
-    if ((void*) arg_ptr == NULL || !is_user_vaddr((const void*) arg_ptr) || pagedir_get_page(thread_current()->pagedir, (void*) arg_ptr) == NULL) { \
-        exit_thread(INVALID_ARG_ERROR); \
-    } \
-    var_name = *(type *) (arg_ptr++); \
+    validate_pointer (arg_ptr);               \
+    var_name = *(type *) (arg_ptr++);         \
 })
 
 struct exec_waiter {
@@ -43,5 +41,14 @@ void syscall_init (void);
 void exit_thread (int);
 
 typedef void (*handler) (int32_t *, uint32_t *);
+
+/* Checks if a pointer can be accessed legally by the user process */
+inline static void
+validate_pointer (void *ptr)
+{
+  if (ptr == NULL || !is_user_vaddr(ptr) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) {
+    exit_thread(INVALID_ARG_ERROR);
+  }
+}
 
 #endif /* userprog/syscall.h */

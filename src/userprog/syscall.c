@@ -9,7 +9,6 @@
 #include "threads/interrupt.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
-#include "threads/vaddr.h"
 
 #include "userprog/process.h"
 #include "userprog/syscall.h"
@@ -21,7 +20,6 @@ static struct lock fd_lock;
 static struct lock filesys_lock;
 
 static void syscall_handler (struct intr_frame *);
-inline static void validate_pointer (void *ptr);
 static void validate_buffer (void* buffer, unsigned size);
 
 static void write (int32_t *args, uint32_t *return_value);
@@ -227,13 +225,6 @@ open (int32_t *args, uint32_t *return_value)
   *return_value = f->fd;
 }
 
-inline static void
-validate_pointer (void *ptr)
-{
-    if (ptr == NULL || !is_user_vaddr(ptr) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) {
-        exit_thread(INVALID_ARG_ERROR);
-    }
-}
 
 /* Returns the size of the file associated with a given fd. */
 /* SIGNATURE: int filesize (int fd)*/
@@ -324,15 +315,11 @@ validate_buffer (void* buffer, unsigned size)
 {
   validate_pointer(buffer);
 
-  bool valid = true;
-  for (void* tmp = buffer; tmp <= buffer + size - PAGE_SIZE; tmp += PAGE_SIZE) {
-    valid &= (is_user_vaddr(tmp) && (pagedir_get_page(thread_current()->pagedir, tmp) != NULL));
+  void* end  = buffer + size;
+  for (void* tmp = buffer; tmp < end; tmp += PAGE_SIZE) {
+    validate_pointer(tmp);
   }
-  valid &= (is_user_vaddr(buffer+size) && (pagedir_get_page(thread_current()->pagedir, buffer+size) != NULL));
-
-  if (!valid) {
-    exit_thread(INVALID_ARG_ERROR);
-  }
+  validate_pointer(end - 1);
 }
 
 /* SIGNATURE: int write (int fd, const void *buffer, unsigned size) */
