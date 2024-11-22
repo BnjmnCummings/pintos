@@ -349,9 +349,8 @@ thread_create (const char *name, int priority,
   hash_init (&t->children, child_elem_hash, child_elem_less, NULL);
   t->as_child = malloc(sizeof (struct child_elem));
 
-  if (t->as_child == NULL) {
-    thread_exit_safe(-1);
-  }
+  if (t->as_child == NULL)
+    return TID_ERROR;
   
   sema_init(&t->as_child->sema, 0);
   t->as_child->dead = false;
@@ -515,21 +514,27 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
+
   struct thread *cur = thread_current ();
+
+  intr_disable ();
+
+  /* If parent is dead free the child_elem, otherwise sema_up to tell parent it has died */
   if (cur->as_child->dead) {
     free(cur->as_child);
   } else {
     cur->as_child->dead = true;
+    sema_up(&cur->as_child->sema);
   }
+
+  /* free hash tables and all their elements */
   hash_destroy(&cur->children, free_children);
   hash_destroy(&cur->files, &free_file);
-  sema_up(&cur->as_child->sema);
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
-  intr_disable ();
   list_remove (&thread_current ()->allelem);
 
   thread_current ()->status = THREAD_DYING;
@@ -537,7 +542,7 @@ thread_exit (void)
   NOT_REACHED ();
 }
 
-/* Frees a file given its hash_elem.*/
+/* Frees a file given its hash_elem. */
 static void
 free_file (struct hash_elem *e, void *aux UNUSED)
 {
@@ -546,6 +551,7 @@ free_file (struct hash_elem *e, void *aux UNUSED)
   free(f);
 }
 
+/* Frees child_elem if needed, or sets dead to true. */
 static void
 free_children (struct hash_elem *e, void *aux UNUSED)
 {

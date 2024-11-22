@@ -9,7 +9,9 @@
 
 #define MAX_ARGUMENTS 30              /* Maximum number of arguments allowed to be passed. */
 
-#define FOUR_BYTE_ALLIGN_STACK_POINTER(esp) ((void *) ((unsigned long)*(esp) & ~0x3))
+#define LOAD_FAILURE -1               /* Error value when a load is unsuccessful. */
+
+#define FOUR_BYTE_ALIGN_STACK_POINTER(esp) ((void *) ((unsigned long)*(esp) & ~0x3))
 
 /* Uses type conversion to decrement provided void* pointer by a given number of bytes */
 #define DEC_ESP_BY_BYTES(esp, num) ((void *) ((unsigned long) (esp) - (num)))
@@ -32,13 +34,13 @@
     strlcpy((char*) *(esp), (elem), strlen((elem))+1); \
     })
 
-/* Stores the arguments needed to initalise a user process stack */
+/* Stores the arguments needed to initialise a user process stack */
 struct stack_entries 
 {
    char* argv[MAX_ARGUMENTS];    /* Arguments array with a predefined maximum. */
    int    argc;                  /* Actual number of arguments. */
    char*  fn_copy;               /* Used in given implementation. */
-   struct exec_waiter *waiter;   /* Syncronization structure including a semaphore and return boolean. */
+   struct exec_waiter *waiter;   /* Synchronization structure including a semaphore and return boolean. */
 };
 
 tid_t process_execute (const char *file_name, struct exec_waiter *waiter);

@@ -125,10 +125,11 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
+/* Element representing child of a parent pushed to children table. */
 struct child_elem
 {
    tid_t tid;                       /* Child's thread identifier. */
-   struct semaphore sema;           /* Semaphore for parent-child syncronization. */
+   struct semaphore sema;           /* Semaphore for parent-child synchronization. */
    int exit_status;                 /* Return exit status. */
    bool waited;                     /* True if child has called process_wait(). */
    bool dead;                       /* True if child thread has been killed. */

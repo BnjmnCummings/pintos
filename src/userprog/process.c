@@ -47,12 +47,13 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
   char *save_ptr;
   char *prog_name  = strtok_r((char *) fn_copy, SPACE_DELIM, (char **) &save_ptr);
 
-  /* Break up command line string into file name and user process arguments,
-   * then store them inside struct stack_entries */
   struct stack_entries* args = malloc(sizeof(struct stack_entries));
-  if (args == NULL)
+  if (args == NULL) {
+    free(fn_copy);
     return TID_ERROR;
+  }
 
+  /* Break the prog_name into separate arguments and add them to argv. */
   int i = 0;
   char* argument = prog_name;
   for (; argument != NULL; argument = strtok_r(NULL, SPACE_DELIM, (char **) &save_ptr)) {
@@ -69,10 +70,13 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (prog_name, PRI_DEFAULT, start_process, args);
+
+  /* Ensure dynamically allocated data is freed is thread_create fails. */
   if (tid == TID_ERROR) {
     palloc_free_page (fn_copy);
     free(args);
   }
+
   return tid;
 }
 
@@ -94,17 +98,17 @@ start_process (void *args)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, entry);
 
-
-  /* If load failed, quit. */
+  /* Free all dynamically allocated data. */
   palloc_free_page (file_name);
   free(args);
 
-
+  /* If a parent is waiting, set the load status and wake the thread. */
   if (waiter != NULL) {
     waiter->success = success;
     sema_up(&waiter->sema);
   }
 
+  /* If load failed, quit. */
   if (!success) {
     thread_exit_safe(-1);
   }
@@ -133,7 +137,7 @@ process_wait (tid_t child_tid)
 {
   struct child_elem *child = child_lookup(child_tid);
   if (child == NULL || child->waited == true)
-    return -1;
+    return TID_ERROR;
   child->waited = true;
   sema_down(&child->sema);
   return child->exit_status;
@@ -281,6 +285,10 @@ load (const char *file_name, void (**eip) (void), void **esp, struct stack_entri
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
+
+  /* Prevent executable file from being edited while being executed. */
+  file_deny_write(file);
+  t->open_file = file;
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -516,7 +524,7 @@ setup_stack (void **esp, struct stack_entries* args)
           arg_pointers[i] = *esp;
         }
 
-        *esp = FOUR_BYTE_ALLIGN_STACK_POINTER(esp);;
+        *esp = FOUR_BYTE_ALIGN_STACK_POINTER(esp);;
 
         /* Push pointers to arguments onto the stack */
         for (int i = args->argc; i >= 0; i--) {
