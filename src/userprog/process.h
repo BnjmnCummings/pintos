@@ -9,7 +9,7 @@
 
 #define MAX_ARGUMENTS 30              /* Maximum number of arguments allowed to be passed. */
 
-#define LOAD_FAILURE -1
+#define LOAD_FAILURE -1               /* Error value when a load is unsuccessful. */
 
 #define FOUR_BYTE_ALLIGN_STACK_POINTER(esp) ((void *) ((uintptr_t)*(esp) & ~0x3))
 
@@ -32,7 +32,7 @@ struct stack_entries
    char* argv[MAX_ARGUMENTS];    /* Arguments array with a predefined maximum. */
    int    argc;                  /* Actual number of arguments. */
    char*  fn_copy;               /* Used in given implementation. */
-   struct exec_waiter *waiter;   /* Syncronization structure including a semaphore and return boolean. */
+   struct exec_waiter *waiter;   /* Synchronization structure including a semaphore and return boolean. */
 };
 
 tid_t process_execute (const char *file_name, struct exec_waiter *waiter);

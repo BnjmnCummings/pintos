@@ -26,16 +26,20 @@
     var_name = *(type *) (arg_ptr++);         \
 })
 
+/* Type of argument pushed to stack. */
 typedef uint32_t stack_arg;
 
+/* Type of syscall handler functions. */
 typedef void (*handler) (stack_arg *, stack_arg *);
 
+/* Waiting object for exec() synchronization. */
 struct exec_waiter
 {
-    struct semaphore sema;         /*  */
+    struct semaphore sema;         /* Used to synchronize exec() calls with load. */
     bool success;                  /* Return status for executable. */
 };
 
+/* Element in a file descriptor hash table */
 struct file_elem
 {
     int fd;                        /* Unique file descriptor. */

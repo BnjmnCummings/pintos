@@ -125,6 +125,7 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
+/* Element representing child of a parent pushed to children table. */
 struct child_elem
 {
    tid_t tid;                       /* Child's thread identifier. */

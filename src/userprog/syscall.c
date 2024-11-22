@@ -37,6 +37,7 @@ static void seek (stack_arg *args, stack_arg *return_value UNUSED);
 static void tell (stack_arg *args, stack_arg *return_value);
 static void close (stack_arg *args, stack_arg *return_value UNUSED);
 
+/* Enumeration of system call functions. */
 static handler sys_call_handlers[NUM_SYSCALLS] = {
     halt,                   /* Halt the operating system. */
     exit,                   /* Terminate this process. */
@@ -334,7 +335,7 @@ read (stack_arg *args, stack_arg *return_value)
 
   validate_buffer(buffer, size);
 
-  /* Read */
+  /* Read from standard input. */
   if (fd == STDIN_FILENO) {
     int inputs_read = 0;
 
@@ -348,6 +349,7 @@ read (stack_arg *args, stack_arg *return_value)
     return;
   }
 
+  /* Read from keyboard. */
   lock_acquire(&filesys_lock);
 
   struct file *f = file_lookup(fd);
@@ -379,6 +381,7 @@ write (stack_arg *args, stack_arg *return_value)
 
   validate_buffer(buffer, size);
 
+  /* Write to console. */
   if (fd == STDOUT_FILENO) {
     /* Only write to stdout by a constant amount of bytes per write */
     unsigned written = 0;
@@ -394,6 +397,7 @@ write (stack_arg *args, stack_arg *return_value)
     return;
   }
 
+  /* Write to file. */
   lock_acquire(&filesys_lock);
 
   struct file *f = file_lookup(fd);
