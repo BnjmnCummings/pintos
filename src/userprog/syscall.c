@@ -447,18 +447,16 @@ exec (int32_t *args, uint32_t *return_value)
   struct exec_waiter waiter;
   sema_init(&waiter.sema, 0);
   tid_t pid = process_execute(cmd_line, &waiter);
+  *return_value = pid;
   if (pid == TID_ERROR) {
-    *return_value = TID_ERROR;
     return;
   }
   sema_down(&waiter.sema);
 
   /* return the pid of the new process or -1 for failed initialisation */
-  if (waiter.success) {
-    *return_value = pid;
-    return;
+  if (!waiter.success) {
+    *return_value = TID_ERROR;
   }
-  *return_value = TID_ERROR;
 }
 
 /* SIGNATURE: int wait (tid_t pid) */
