@@ -47,6 +47,8 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
   char *save_ptr;
   char *prog_name  = strtok_r((char *) fn_copy, SPACE_DELIM, (char **) &save_ptr);
 
+  /* Break up command line string into file name and user process arguments,
+   * then store them inside struct stack_entries */
   struct stack_entries* args = malloc(sizeof(struct stack_entries));
   ASSERT(args != NULL);
 
