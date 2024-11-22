@@ -50,7 +50,8 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
   /* Break up command line string into file name and user process arguments,
    * then store them inside struct stack_entries */
   struct stack_entries* args = malloc(sizeof(struct stack_entries));
-  ASSERT(args != NULL);
+  if (args == NULL)
+    return TID_ERROR;
 
   int i = 0;
   char* argument = prog_name;
