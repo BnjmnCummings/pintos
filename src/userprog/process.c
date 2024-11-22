@@ -378,6 +378,7 @@ load (const char *file_name, void (**eip) (void), void **esp, struct stack_entri
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
+static bool check_overflow(void **esp, struct stack_entries *args);
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -511,19 +512,11 @@ setup_stack (void **esp, struct stack_entries* args)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
         *esp = PHYS_BASE;
-
-        /* Check if the arguments will overflow the stack */
-        void** final_addr = esp; 
-        for (int i = 0; i < args->argc; i++) {
-          *final_addr = DEC_ESP_BY_BYTES(*(final_addr), strlen((args->argv[i]))+1);
-        }
         *esp = FOUR_BYTE_ALLIGN_STACK_POINTER(esp);
-        *final_addr = DEC_ESP_BY_BYTES(*(final_addr),
-                                       sizeof(char*) * (args->argc) + sizeof(char**) + sizeof(int) + sizeof(void*));
 
-        if ((unsigned) *final_addr <= PAGE_LOWEST_ADRESS) {
+        /* Fail if args would overflow the stack. */
+        if (check_overflow(esp, args))
           return false;
-        }
 
         /* Push argument strings onto the stack */
         void* arg_pointers[args->argc+1];
@@ -552,6 +545,20 @@ setup_stack (void **esp, struct stack_entries* args)
     }
 
   return success;
+}
+
+/* Check if the arguments will overflow the stack */
+static bool
+check_overflow(void **esp, struct stack_entries *args)
+{
+  void** final_addr = esp;
+  for (int i = 0; i < args->argc; i++) {
+    *final_addr = DEC_ESP_BY_BYTES(*(final_addr), strlen((args->argv[i]))+1);
+  }
+  *final_addr = DEC_ESP_BY_BYTES(*(final_addr),
+                                 sizeof(char*) * (args->argc) + sizeof(char**) + sizeof(int) + sizeof(void*));
+
+  return *(unsigned *)final_addr <= PAGE_LOWEST_ADRESS;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
