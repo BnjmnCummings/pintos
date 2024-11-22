@@ -514,14 +514,16 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
+
   struct thread *cur = thread_current ();
 
+  intr_disable ();
   /* If parent is dead free the child_elem, otherwise sema_up to tell parent it has died */
   if (cur->as_child->dead) {
     free(cur->as_child);
   } else {
-    sema_up(&cur->as_child->sema);
     cur->as_child->dead = true;
+    sema_up(&cur->as_child->sema);
   }
 
   /* free hash tables and all their elements */
@@ -532,7 +534,6 @@ thread_exit (void)
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
-  intr_disable ();
   list_remove (&thread_current ()->allelem);
 
   thread_current ()->status = THREAD_DYING;
