@@ -347,18 +347,18 @@ thread_create (const char *name, int priority,
 #ifdef USERPROG
   hash_init (&t->files, file_elem_hash, file_elem_less, NULL);
   hash_init (&t->children, child_elem_hash, child_elem_less, NULL);
-  t->wait = malloc(sizeof (struct child_elem));
+  t->as_child = malloc(sizeof (struct child_elem));
 
-  if (t->wait == NULL) {
-    exit_thread(-1);
-  }
-  sema_init(&t->wait->sema, 0);
-  t->wait->dead = false;
-  t->wait->waited = false;
-  t->wait->tid = t->tid;
-  t->wait->parent = thread_current ();
+  if (t->as_child == NULL)
+    return TID_ERROR;
+  
+  sema_init(&t->as_child->sema, 0);
+  t->as_child->dead = false;
+  t->as_child->waited = false;
+  t->as_child->tid = t->tid;
+  t->as_child->parent = thread_current ();
 
-  hash_insert(&thread_current ()->children, &t->wait->hash_elem);
+  hash_insert(&thread_current ()->children, &t->as_child->hash_elem);
 #endif
 
   intr_set_level (old_level);
@@ -382,10 +382,10 @@ child_lookup (const int tid)
 }
 
 static unsigned
-child_elem_hash (const struct hash_elem *f_, void *aux UNUSED)
+child_elem_hash (const struct hash_elem *c_, void *aux UNUSED)
 {
-  const struct child_elem *f = hash_entry (f_, struct child_elem, hash_elem);
-  return hash_int(f->tid);
+  const struct child_elem *c = hash_entry (c_, struct child_elem, hash_elem);
+  return hash_int(c->tid);
 }
 
 static bool
@@ -514,21 +514,27 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
+
   struct thread *cur = thread_current ();
-  if (cur->wait->dead) {
-    free(cur->wait);
+
+  intr_disable ();
+
+  /* If parent is dead free the child_elem, otherwise sema_up to tell parent it has died */
+  if (cur->as_child->dead) {
+    free(cur->as_child);
   } else {
-    cur->wait->dead = true;
+    cur->as_child->dead = true;
+    sema_up(&cur->as_child->sema);
   }
+
+  /* free hash tables and all their elements */
   hash_destroy(&cur->children, free_children);
   hash_destroy(&cur->files, &free_file);
-  sema_up(&cur->wait->sema);
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
-  intr_disable ();
   list_remove (&thread_current ()->allelem);
 
   thread_current ()->status = THREAD_DYING;
@@ -536,7 +542,7 @@ thread_exit (void)
   NOT_REACHED ();
 }
 
-/* Frees a file given its hash_elem.*/
+/* Frees a file given its hash_elem. */
 static void
 free_file (struct hash_elem *e, void *aux UNUSED)
 {
@@ -545,6 +551,7 @@ free_file (struct hash_elem *e, void *aux UNUSED)
   free(f);
 }
 
+/* Frees child_elem if needed, or sets dead to true. */
 static void
 free_children (struct hash_elem *e, void *aux UNUSED)
 {

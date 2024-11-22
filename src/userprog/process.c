@@ -23,7 +23,6 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp, struct stack_entries* args);
 
@@ -40,7 +39,7 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
 
   /* Make a copy of FILE_NAME.
      Otherwise, there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
+  fn_copy = palloc_get_page (PAL_ZERO);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
@@ -49,12 +48,15 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
   char *prog_name  = strtok_r((char *) fn_copy, SPACE_DELIM, (char **) &save_ptr);
 
   struct stack_entries* args = malloc(sizeof(struct stack_entries));
-  ASSERT(args != NULL);
+  if (args == NULL) {
+    free(fn_copy);
+    return TID_ERROR;
+  }
 
+  /* Break the prog_name into separate arguments and add them to argv. */
   int i = 0;
   char* argument = prog_name;
   for (; argument != NULL; argument = strtok_r(NULL, SPACE_DELIM, (char **) &save_ptr)) {
-    //deal with arguments?
     args->argv[i] = argument;
     i++;
     if (i > MAX_ARGUMENTS)
@@ -66,10 +68,13 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (prog_name, PRI_DEFAULT, start_process, args);
+
+  /* Ensure dynamically allocated data is freed is thread_create fails. */
   if (tid == TID_ERROR) {
     palloc_free_page (fn_copy);
     free(args);
   }
+
   return tid;
 }
 
@@ -91,19 +96,19 @@ start_process (void *args)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, entry);
 
-
-  /* If load failed, quit. */
+  /* Free all dynamically allocated data. */
   palloc_free_page (file_name);
   free(args);
 
-
+  /* If a parent is waiting, set the load status and wake the thread. */
   if (waiter != NULL) {
     waiter->success = success;
     sema_up(&waiter->sema);
   }
 
+  /* If load failed, quit. */
   if (!success) {
-    exit_thread(-1);
+    thread_exit_safe(LOAD_FAILURE);
   }
 
   /* Start the user process by simulating a return from an
@@ -126,11 +131,11 @@ start_process (void *args)
  * This function will be implemented in task 2.
  * For now, it does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
   struct child_elem *child = child_lookup(child_tid);
   if (child == NULL || child->waited == true)
-    return -1;
+    return TID_ERROR;
   child->waited = true;
   sema_down(&child->sema);
   return child->exit_status;
@@ -279,6 +284,10 @@ load (const char *file_name, void (**eip) (void), void **esp, struct stack_entri
       goto done; 
     }
 
+  /* Prevent executable file from being edited while being executed. */
+  file_deny_write(file);
+  t->open_file = file;
+
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -358,8 +367,6 @@ load (const char *file_name, void (**eip) (void), void **esp, struct stack_entri
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
-  file_deny_write(file);
-  t->open_file = file;
 
   success = true;
 
@@ -371,6 +378,7 @@ load (const char *file_name, void (**eip) (void), void **esp, struct stack_entri
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
+static bool check_overflow(void **esp, struct stack_entries *args);
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -504,19 +512,11 @@ setup_stack (void **esp, struct stack_entries* args)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
         *esp = PHYS_BASE;
-
-        /* Check if the arguments will overflow the stack */
-        void** final_addr = esp; 
-        for (int i = 0; i < args->argc; i++) {
-          *final_addr = DEC_ESP_BY_BYTES(*(final_addr), strlen((args->argv[i]))+1);
-        }
         *esp = FOUR_BYTE_ALLIGN_STACK_POINTER(esp);
-        *final_addr = DEC_ESP_BY_BYTES(*(final_addr),
-                                       sizeof(char*) * (args->argc) + sizeof(char**) + sizeof(int) + sizeof(void*));
 
-        if ((unsigned) *final_addr <= PAGE_LOWEST_ADRESS) {
+        /* Fail if args would overflow the stack. */
+        if (check_overflow(esp, args))
           return false;
-        }
 
         /* Push argument strings onto the stack */
         void* arg_pointers[args->argc+1];
@@ -532,6 +532,7 @@ setup_stack (void **esp, struct stack_entries* args)
         for (int i = args->argc; i >= 0; i--) {
           stack_push_element(esp, arg_pointers[i], char*);
         }
+
         /* Push argv, argc, and dummy return address*/
         void* argv = *esp;
         stack_push_element(esp, argv, char**);
@@ -542,7 +543,22 @@ setup_stack (void **esp, struct stack_entries* args)
         palloc_free_page (kpage);
       }
     }
+
   return success;
+}
+
+/* Check if the arguments will overflow the stack */
+static bool
+check_overflow(void **esp, struct stack_entries *args)
+{
+  void** final_addr = esp;
+  for (int i = 0; i < args->argc; i++) {
+    *final_addr = DEC_ESP_BY_BYTES(*(final_addr), strlen((args->argv[i]))+1);
+  }
+  *final_addr = DEC_ESP_BY_BYTES(*(final_addr),
+                                 sizeof(char*) * (args->argc) + sizeof(char**) + sizeof(int) + sizeof(void*));
+
+  return *(unsigned *)final_addr <= PAGE_LOWEST_ADRESS;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
