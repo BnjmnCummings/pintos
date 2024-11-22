@@ -515,14 +515,18 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
   struct thread *cur = thread_current ();
+
+  /* If parent is dead free the child_elem, otherwise sema_up to tell parent it has died */
   if (cur->as_child->dead) {
     free(cur->as_child);
   } else {
+    sema_up(&cur->as_child->sema);
     cur->as_child->dead = true;
   }
+
+  /* free hash tables and all their elements */
   hash_destroy(&cur->children, free_children);
   hash_destroy(&cur->files, &free_file);
-  sema_up(&cur->as_child->sema);
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
