@@ -303,7 +303,6 @@ exit (int32_t *args, uint32_t *return_value UNUSED)
 {
   int status;
   get_argument(status, args, int);
-  /* status must be stored somewhere, maybe in thread struct*/
   thread_exit_safe(status);
 }
 

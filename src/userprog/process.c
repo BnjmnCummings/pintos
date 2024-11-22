@@ -284,6 +284,10 @@ load (const char *file_name, void (**eip) (void), void **esp, struct stack_entri
       goto done; 
     }
 
+  /* Prevent executable file from being edited while being executed. */
+  file_deny_write(file);
+  t->open_file = file;
+
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -363,8 +367,6 @@ load (const char *file_name, void (**eip) (void), void **esp, struct stack_entri
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
-  file_deny_write(file);
-  t->open_file = file;
 
   success = true;
 
