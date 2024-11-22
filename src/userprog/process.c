@@ -57,8 +57,10 @@ process_execute (const char *file_name, struct exec_waiter *waiter)
   for (; argument != NULL; argument = strtok_r(NULL, SPACE_DELIM, (char **) &save_ptr)) {
     args->argv[i] = argument;
     i++;
-    if (i > MAX_ARGUMENTS)
+    if (i >= MAX_ARGUMENTS) {
+      free(args);
       return TID_ERROR;
+    }
   }
   args->argc = i;
   args->fn_copy = fn_copy;
