@@ -369,9 +369,6 @@ load (const char *file_name, void (**eip) (void), void **esp, struct stack_entri
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
-  file_deny_write(file);
-  t->open_file = file;
-
   success = true;
 
  done:
