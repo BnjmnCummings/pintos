@@ -1,6 +1,6 @@
 # PintOS
 
-My solution to Stanford University's [PintOS](https://en.wikipedia.org/wiki/Pintos) project, submitted as part of my Operating Systems module at Imperial College London. This project involved implementing some fundamental operating system features including but not limited to: thread scheduling and synchronisation, system call handling, file handling and virtual memory handling. Concluding these tasks meant clearing our implementation of all race conditions and memory leak, allowing us to have a 'water-tight' environment to run user-programs.
+Our solution to Stanford University's [PintOS](https://en.wikipedia.org/wiki/Pintos) project, submitted as part of my Operating Systems module at Imperial College London. This project involved implementing some fundamental operating system features including but not limited to: thread scheduling and synchronisation, system call handling, file handling and virtual memory handling. Concluding these tasks meant clearing our implementation of all race conditions and memory leak, allowing us to have a 'water-tight' environment to run user-programs.
 
 >## Pre-requisites for running PintOS
 >
