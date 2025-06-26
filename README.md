@@ -25,4 +25,4 @@ Our solution to Stanford University's [PintOS](https://en.wikipedia.org/wiki/Pin
 >- [**QEMU**](http://fabrice.bellard.free.fr/qemu/): The QEMU emulator required to run PintOS is qemu-system-i386 which is part of the qemu-system package on
 >most modern Unix platforms. We recommend using version 2.10 or later, but at least version 2.5
 
-If you like PintOS, why not try our... [ARM emulator and assembler](https://github.com/BnjmnCummings/arm-v8-emulator-and-assembler)!?
+If you like PintOS, why not try our... [ARM emulator and assembler](https://github.com/BnjmnCummings/arm-emulator-and-assembler)!?
